@@ -1,0 +1,5 @@
+name: Graduate
+family: Compact
+description: Education and projects first. For students and recent graduates with little work experience.
+style: {font: Lato, heading_font: Lato, accent: "#2F5BD3", section_style: rule, photo: none, group: false}
+order: [summary, education, projects, experience, skills, languages, certifications, awards, volunteering, courses, publications, interests]

@@ -1,0 +1,6 @@
+name: Academic
+family: Specialist
+description: Education and publications first, centred header. For research, PhD and university jobs.
+style: {font: New Computer Modern, heading_font: New Computer Modern, accent: "#000000", section_style: caps, header: center, date_pos: left, group: false}
+order: [summary, education, publications, experience, projects, awards, certifications, skills, languages, courses, volunteering, interests]
+pages: 3

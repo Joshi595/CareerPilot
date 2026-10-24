@@ -1,0 +1,5 @@
+name: Europass-like
+family: Specialist
+description: Personal details and languages in a side column, EU blue. Familiar to European public-sector recruiters.
+style: {layout: sidebar, side: left, font: Lato, heading_font: Lato, accent: "#0E47A1", side_fill: "#EAF0FA", section_style: bar, languages_style: dots, skills_style: stacked, group: false}
+sidebar: [languages, skills, certifications, interests]

@@ -1,0 +1,4 @@
+name: Executive
+family: Traditional
+description: A dark name band across the top, strong headings. For managers and senior roles.
+style: {font: Lato, heading_font: Lato, accent: "#1F2937", section_style: rule, header: band, group: true}

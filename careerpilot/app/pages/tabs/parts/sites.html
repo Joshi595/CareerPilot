@@ -1,0 +1,35 @@
+<section class="stack" x-data="sites" :aria-label="t('sites.title')">
+  <p class="muted" x-text="t('sites.intro')"></p>
+  <p class="small" aria-live="polite" x-text="summaryText()"></p>
+
+  <form class="toolbar" @submit.prevent="add()">
+    <input x-model="name" :placeholder="t('sites.name')" :aria-label="t('sites.name')">
+    <input type="url" x-model="url" placeholder="https://…" spellcheck="false" :aria-label="t('sites.url')">
+    <button class="btn" :disabled="adding || !url.trim()" x-text="adding ? t('working') : t('sites.add')"></button>
+  </form>
+  <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+
+  <input type="search" x-model="q" x-show="rows.length > 10" :placeholder="t('sites.filter')" :aria-label="t('sites.filter')">
+  <div class="empty" x-show="summary && !rows.length"><span x-text="t('sites.empty')"></span></div>
+  <table class="table" x-show="rows.length">
+    <thead><tr>
+      <th x-text="t('sites.company')"></th><th x-text="t('sites.system')"></th><th x-text="t('sites.via')"></th>
+      <th x-text="t('sites.last')"></th><th x-text="t('sites.on')"></th>
+    </tr></thead>
+    <tbody>
+      <template x-for="s in matching().slice(0, limit)" :key="s.kind + s.ref">
+        <tr>
+          <td><b x-text="s.company || s.ref"></b><div class="small muted" x-text="s.ref"></div></td>
+          <td x-text="s.kind"></td>
+          <td x-text="t('sites.origin.' + s.origin)"></td>
+          <td :class="s.error && 'bad'" x-text="lastScan(s)"></td>
+          <td><input type="checkbox" class="switch" :checked="!s.off" @change="toggle(s)"
+                     :aria-label="t('sites.on') + ': ' + (s.company || s.ref)"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+  <div class="actions" x-show="matching().length > limit">
+    <button class="btn" @click="limit += 100" x-text="t('board.more', {n: matching().length - limit})"></button>
+  </div>
+</section>

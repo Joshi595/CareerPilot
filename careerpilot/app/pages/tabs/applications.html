@@ -1,0 +1,207 @@
+<div x-data="applications">
+  <div class="page-head">
+    <div>
+      <h1 x-text="t('tabs.applications')"></h1>
+      <p class="small" x-show="rows.length" x-text="totals()"></p>
+    </div>
+    <div class="actions">
+      <button class="btn" :disabled="!rows.length" @click="exportCsv()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="t('applications.export')"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="chips" role="group" :aria-label="t('applications.stages')">
+    <template x-for="s in ['', 'send', 'applied', 'test', 'interview', 'offer', 'closed']" :key="s">
+      <button class="chip" :aria-pressed="stage === s" @click="stage = s">
+        <span x-text="t('applications.stage.' + (s || 'all'))"></span><span class="muted num" x-text="count(s)"></span>
+      </button>
+    </template>
+  </div>
+  <div class="toolbar">
+    <input type="search" x-model="q" :placeholder="t('applications.filter')" :aria-label="t('applications.filter')">
+    <select x-model="sort" :aria-label="t('applications.sort')">
+      <option value="new" x-text="t('applications.sort_new')"></option>
+      <option value="old" x-text="t('applications.sort_old')"></option>
+      <option value="company" x-text="t('applications.sort_company')"></option>
+    </select>
+  </div>
+
+  <div class="msg bad" x-show="err" role="alert">
+    <span x-text="err"></span> <button class="btn sm" @click="reload()" x-text="t('board.retry')"></button>
+  </div>
+  <div class="list" x-show="loading" aria-busy="true" :aria-label="t('applications.loading')">
+    <template x-for="n in 6" :key="n"><div class="item"><span class="skeleton sk-line"></span></div></template>
+  </div>
+  <div class="empty" x-show="!loading && !err && !groups().length">
+    <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-briefcase"/></svg>
+    <span x-text="rows.length ? t('applications.empty_filter') : t('applications.empty')"></span>
+  </div>
+
+  <template x-for="g in groups()" :key="g.s">
+    <details class="app-group" :open="g.s !== 'closed' || stage === 'closed' || !!q" @toggle="if (g.s === 'closed') closedOpen = $el.open">
+      <summary>
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-right"/></svg>
+        <h2 x-text="t('applications.stage.' + g.s)"></h2><span class="count num" x-text="g.rows.length"></span>
+      </summary>
+      <template x-if="g.s !== 'closed' || closedOpen"><ul class="list apps">
+        <template x-for="r in g.rows" :key="r.id">
+          <li class="item" @click="rowClick($event, r)">
+            <div class="job-main">
+              <a class="job-title" x-show="r.data.url" :href="r.data.url" target="_blank" rel="noopener">
+                <span x-text="r.role"></span><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-external-link"/></svg>
+                <span class="sr-only" x-text="t('board.new_tab')"></span>
+              </a>
+              <span class="job-title" x-show="!r.data.url" x-text="r.role"></span>
+              <div class="app-meta">
+                <span x-text="r.company"></span><span aria-hidden="true">·</span><span class="num" x-text="fmtDate(r.date_applied) || '—'"></span>
+                <span class="method" x-show="r.method" :title="r.method" role="img" :aria-label="r.method">
+                  <svg class="i sm" aria-hidden="true"><use :href="'/static/icons.svg#i-' + methodIcon(r.method)"/></svg></span>
+                <span class="badge interview" x-show="soon(r)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-calendar"/></svg><span class="num" x-text="soon(r) && when(r.data.interview_at)"></span></span>
+                <span class="method" x-show="r.note" :title="r.note" role="img" :aria-label="t('applications.has_note') + ': ' + r.note">
+                  <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-sticky-note"/></svg></span>
+              </div>
+            </div>
+            <div class="app-acts">
+              <button class="btn secondary sm" x-show="nudge(r)" :disabled="busy" @click="followUp(r)"
+                      x-text="t('applications.nudge', {n: days(r.date_applied)})"></button>
+              <span class="badge accent" x-show="(r.data.replies || []).length" :title="t('applications.replies')">
+                <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-mail"/></svg>
+                <span x-text="(r.data.replies || []).length"></span><span class="sr-only" x-text="t('applications.replies')"></span>
+              </span>
+              <a class="btn ghost sm" x-show="doc(r, 'cv')" :href="file(r, doc(r, 'cv'))" target="_blank" :title="doc(r, 'cv')">
+                <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="t('applications.cv')"></span></a>
+              <a class="btn ghost sm" x-show="doc(r, 'letter')" :href="file(r, doc(r, 'letter'))" target="_blank" :title="doc(r, 'letter')">
+                <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="t('applications.letter')"></span></a>
+              <select class="pill" :class="r.status" x-model="r.status" @change="save(r, 'status')"
+                      :aria-label="t('applications.status_of', {role: r.role})">
+                <template x-for="s in statuses" :key="s"><option :value="s" :selected="s === r.status" x-text="t('status.' + s)"></option></template>
+              </select>
+              <button class="btn ghost icon sm" :aria-label="t('applications.details', {role: r.role})" :title="t('applications.details_short')"
+                      @click="show(r)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-right"/></svg></button>
+            </div>
+          </li>
+        </template>
+      </ul></template>
+    </details>
+  </template>
+
+  <dialog class="drawer" x-ref="drawer" :aria-label="cur?.role || t('applications.details_short')" @click.self="$el.close()">
+    <template x-if="cur">
+      <div>
+        <div class="dialog-head">
+          <div class="drawer-title">
+            <h2 x-text="cur.role"></h2>
+            <span class="small muted" x-text="cur.company + ' · ' + (cur.date_applied ? t('applications.applied_ago', {date: fmtDate(cur.date_applied), n: days(cur.date_applied)}) : t('applications.not_sent'))"></span>
+          </div>
+          <button class="btn ghost icon" :aria-label="t('nav.close')" @click="$refs.drawer.close()"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+        </div>
+        <div class="drawer-body">
+          <div class="drawer-status">
+            <select class="pill" :class="cur.status" x-model="cur.status" @change="save(cur, 'status')" :aria-label="t('applications.status')">
+              <template x-for="s in statuses" :key="s"><option :value="s" :selected="s === cur.status" x-text="t('status.' + s)"></option></template>
+            </select>
+            <span class="small muted num" x-show="cur.follow_up" x-text="t('applications.followed_up') + ' ' + fmtDate(cur.follow_up)"></span>
+            <span class="badge" x-show="cur.data.applicants_when_applied" :title="t('board.applicants_d')"
+                  x-text="cur.data.applicants_when_applied && t('applications.applicants_then', {text: cur.data.applicants_when_applied.text})"></span>
+          </div>
+          <div class="doc-row">
+            <a class="btn sm" x-show="cur.data.url" :href="cur.data.url" target="_blank" rel="noopener">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-external-link"/></svg><span x-text="t('applications.posting')"></span>
+              <span class="sr-only" x-text="t('board.new_tab')"></span></a>
+            <a class="btn sm" x-show="doc(cur, 'cv')" :href="file(cur, doc(cur, 'cv'))" target="_blank" :title="doc(cur, 'cv')">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="t('applications.cv')"></span></a>
+            <a class="btn sm" x-show="doc(cur, 'letter')" :href="file(cur, doc(cur, 'letter'))" target="_blank" :title="doc(cur, 'letter')">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="t('applications.letter')"></span></a>
+            <button class="btn sm" x-show="cur.folder" @click="openFolder(cur)" :title="t('apply.open_folder_hint')">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-folder"/></svg><span x-text="t('applications.folder')"></span></button>
+            <a class="btn sm" x-show="cur.mail" :href="cur.mail" target="_blank" rel="noopener noreferrer"
+               :title="cur.data.thread ? t('applications.latest_email_d') : t('applications.emails_d', {company: cur.company})">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-mail"/></svg><span x-text="t('applications.gmail')"></span></a>
+          </div>
+
+          <section class="panel inset stack" x-show="interviewing(cur)">
+            <h3 x-text="t('status.' + cur.status)"></h3>
+            <label class="field"><span x-text="t('applications.date_time')"></span>
+              <input type="datetime-local" class="auto" x-model="cur.data.interview_at" @change="saveInterview(cur)" aria-describedby="iv-hint">
+              <span class="hint" id="iv-hint" x-text="t('applications.interview_hint')"></span></label>
+            <div x-show="cur.folder"><button class="btn primary" @click="prepare(cur)">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-message-square"/></svg><span x-text="t('applications.prepare')"></span></button></div>
+            <div class="posting">
+              <h4 x-text="t('applications.job_description')"></h4>
+              <p class="small muted" x-show="posting === null" x-text="t('working')"></p>
+              <p class="small muted" x-show="posting === ''" x-text="t('applications.no_posting')"></p>
+              <pre class="posting-text" :class="!full && 'clamped'" x-show="posting" x-text="posting"></pre>
+              <button class="btn ghost sm" x-show="posting && !full" @click="full = true" x-text="t('applications.show_all')"></button>
+            </div>
+          </section>
+
+          <section>
+            <h3 x-text="t('applications.replies')"></h3>
+            <p class="small muted" x-show="!timeline(cur).length" x-text="t('applications.no_replies')"></p>
+            <ol class="timeline" x-show="timeline(cur).length">
+              <template x-for="m in timeline(cur)" :key="m.date + m.subject">
+                <li :class="m.out && 'out'">
+                  <span class="small muted" x-text="fmtDate(m.date) + ' · ' + (m.out ? t('applications.you_wrote', {to: m.to}) : m.from || '')"></span>
+                  <span x-text="m.subject"></span>
+                  <span class="badge" x-show="m.signal" x-text="t('applications.signal.' + m.signal)"></span>
+                </li>
+              </template>
+            </ol>
+          </section>
+
+          <section x-show="['applied', 'no_response'].includes(cur.status)">
+            <h3 x-text="t('applications.follow_up_title')"></h3>
+            <button class="btn" x-show="!drafts[cur.id]" :disabled="busy" @click="followUp(cur)"
+                    x-text="busy ? t('working') : t('applications.followup')"></button>
+            <template x-if="drafts[cur.id]">
+              <div class="stack">
+                <label class="field"><span x-text="t('applications.to')"></span><input type="email" x-model="drafts[cur.id].to" autocomplete="off" spellcheck="false"></label>
+                <label class="field"><span x-text="t('applications.subject')"></span><input x-model="drafts[cur.id].subject"></label>
+                <label class="field"><span x-text="t('applications.body')"></span><textarea x-model="drafts[cur.id].body" rows="8"></textarea></label>
+                <div class="actions">
+                  <button class="btn primary" :disabled="!drafts[cur.id].to" @click="sendFollowUp(cur)" x-text="t('applications.send')"></button>
+                  <button class="btn" @click="copy(drafts[cur.id].body)" x-text="t('applications.copy')"></button>
+                </div>
+              </div>
+            </template>
+          </section>
+
+          <label class="field"><span x-text="t('applications.note')"></span>
+            <textarea rows="3" x-model="cur.note" @change="save(cur, 'note')"></textarea></label>
+
+          <details class="more">
+            <summary x-text="t('applications.more')"></summary>
+            <dl class="facts">
+              <dt x-text="t('applications.method')"></dt><dd x-text="cur.method || '—'"></dd>
+              <dt x-show="!interviewing(cur)" x-text="t('applications.interview_short')"></dt>
+              <dd x-show="!interviewing(cur)"><input type="datetime-local" class="auto" x-model="cur.data.interview_at" @change="saveInterview(cur)" :aria-label="t('applications.interview_at')"></dd>
+            </dl>
+            <section x-show="cur.form_answers">
+              <h3 x-text="t('applications.form_told')"></h3>
+              <pre class="form-answers" x-text="cur.form_answers"></pre>
+            </section>
+            <section x-show="cur.files.length">
+              <h3 x-text="t('applications.files')"></h3>
+              <ul class="files">
+                <template x-for="f in cur.files" :key="f">
+                  <li><a :href="file(cur, f)" target="_blank"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="f"></span></a></li>
+                </template>
+              </ul>
+            </section>
+            <section x-show="cur.usage.length">
+              <h3 x-text="t('apply.ai_use')"></h3>
+              <table class="usage">
+                <thead><tr><th x-text="t('apply.u_step')"></th><th x-text="t('apply.u_in')"></th><th x-text="t('apply.u_cached')"></th><th x-text="t('apply.u_out')"></th><th x-text="t('apply.u_cost')"></th></tr></thead>
+                <tbody><template x-for="u in [...cur.usage, usageTotal(cur.usage)]">
+                  <tr :class="u.total && 'total'"><td x-text="stepName(u.step) + (u.error ? ' ✗' : '')"></td><td x-text="kTok(u.input)"></td><td x-text="kTok(u.cached)"></td><td x-text="kTok(u.output)"></td><td x-text="'$' + (u.cost_usd ?? 0).toFixed(2)"></td></tr>
+                </template></tbody>
+              </table>
+              <p class="small muted" x-text="t('apply.u_note')"></p>
+            </section>
+          </details>
+        </div>
+      </div>
+    </template>
+  </dialog>
+</div>

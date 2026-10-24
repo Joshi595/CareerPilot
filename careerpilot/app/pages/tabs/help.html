@@ -1,0 +1,59 @@
+<div x-data="help">
+  <div class="page-head">
+    <div>
+      <h1 x-text="t('tabs.help')"></h1>
+      <p class="small" x-text="t('health.intro')"></p>
+    </div>
+  </div>
+
+  <div class="msg bad" x-show="err" role="alert">
+    <span x-text="err"></span> <button class="btn sm" @click="init()" x-text="t('board.retry')"></button>
+  </div>
+  <div class="panel" x-show="!h && !err" aria-busy="true" :aria-label="t('health.loading')">
+    <span class="skeleton sk-block"></span>
+  </div>
+
+  <section class="panel stack how" aria-labelledby="how-h">
+    <h2 class="sub" id="how-h" x-text="t('how.title')"></h2>
+    <ol><template x-for="k in ['start', 'tailor', 'review', 'you', 'checks', 'learn']" :key="k"><li x-text="t('how.steps.' + k)"></li></template></ol>
+    <h3 class="sub" x-text="t('how.where_title')"></h3>
+    <ul><template x-for="k in ['cv', 'writing', 'details', 'folder', 'archive', 'ai']" :key="k"><li x-text="t('how.where.' + k)"></li></template></ul>
+  </section>
+
+  <section class="panel" x-show="h">
+    <h2 class="sub" x-text="t('health.title')"></h2>
+    <div class="set">
+      <div><span class="set-t" x-text="t('health.data')"></span><code class="set-d" x-text="h?.data_folder"></code></div>
+      <div class="ctl"><button class="btn sm" @click="openFolder()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-external-link"/></svg><span x-text="t('health.open_folder')"></span></button></div>
+    </div>
+    <h3 class="sub" x-text="t('health.ai')"></h3>
+    <p class="small muted" x-show="h && !Object.values(h.agents).some(Boolean)" x-text="t('health.no_ai')"></p>
+    <template x-for="[name, ok] in Object.entries(h?.agents || {})" :key="name">
+      <div class="set">
+        <div>
+          <span class="set-t" x-text="name"></span>
+          <span class="badge" :class="ok ? 'ok' : ''" x-text="ok ? t('health.installed') : t('health.missing')"></span>
+          <span class="badge warn" x-show="ok && name !== 'claude'" x-text="t('settings.agent_beta')"></span>
+          <span class="set-d" x-show="results[name]" :class="results[name]?.startsWith('✓') ? 'ok' : results[name]?.startsWith('✗') && 'bad'" role="status" x-text="results[name]"></span>
+        </div>
+        <div class="ctl" x-show="ok">
+          <button class="btn sm" :disabled="results[name] === t('health.testing')" @click="test(name)" x-text="t('health.test')"></button>
+          <button class="btn ghost sm" @click="signIn(name)" x-text="t('health.sign_in')"></button>
+        </div>
+      </div>
+    </template>
+  </section>
+
+  <section class="panel">
+    <h2 class="sub" x-text="t('health.actions')"></h2>
+    <div class="actions">
+      <button class="btn" @click="backup()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg><span x-text="t('health.backup')"></span></button>
+      <button class="btn" @click="exportJson()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="t('health.export')"></span></button>
+      <button class="btn" @click="update()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-refresh-cw"/></svg><span x-text="t('health.update')"></span></button>
+      <button class="btn" @click="report()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-copy"/></svg><span x-text="t('health.report')"></span></button>
+      <button class="btn danger" @click="quit()" x-text="t('quit')"></button>
+    </div>
+    <p class="msg info small" x-show="note" role="status" x-text="note"></p>
+  </section>
+</div>

@@ -1,0 +1,6 @@
+name: One-page résumé
+family: Compact
+description: Dense and short, no photo. The usual style for the US, UK, Canada and Australia.
+style: {font: Fira Sans, heading_font: Fira Sans, size: 9.8, margin_x: 1.3, margin_y: 1.1, leading: 0.5, accent: "#333333", section_style: rule, photo: none, group: false}
+order: [summary, experience, skills, projects, education, certifications, languages, awards, publications, volunteering, courses, interests]
+pages: 1

@@ -1,0 +1,5 @@
+name: Technical
+family: Specialist
+description: Skills as tags and projects up front, then experience. For engineering and IT roles.
+style: {font: Fira Sans, heading_font: Fira Sans, accent: "#374151", section_style: rule, skills_style: tags, group: false}
+order: [summary, skills, projects, experience, education, certifications, languages, publications, awards, courses, volunteering, interests]

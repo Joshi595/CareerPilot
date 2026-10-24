@@ -1,0 +1,4 @@
+name: Elegant serif
+family: Traditional
+description: Centred name, small capitals headings, warm accent. Calm and classic for senior and client-facing roles.
+style: {font: Libertinus Serif, heading_font: Libertinus Serif, accent: "#5B3A29", section_style: caps, header: center, leading: 0.6, group: true}

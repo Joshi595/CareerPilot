@@ -1,0 +1,17 @@
+home_country: DE
+targets:
+  - {code: DE, permit: German citizen, needs_sponsorship: false}
+app_language: en
+agent: claude
+titles: [Backend Engineer, Python Developer, Software Engineer, Cloud Engineer]
+keywords:
+  de: [Softwareentwickler, Backend-Entwickler, Python Entwickler, Cloud Engineer]
+  en: [Backend Engineer, Python Developer, AWS, FastAPI]
+job_types: [full_time]
+places: [Munich]
+radius_km: 50
+remote: any
+salary: "65000-75000 EUR"
+start: in 3 months
+notice: 3 months
+setup_done: true

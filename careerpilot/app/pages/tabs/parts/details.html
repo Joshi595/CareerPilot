@@ -1,0 +1,96 @@
+<div x-data="appDetails" class="details">
+  <p class="muted" x-text="t('details.intro')"></p>
+  <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+  <div x-show="!prefs && !err" aria-busy="true" :aria-label="t('details.loading')">
+    <template x-for="n in 3" :key="n"><div class="panel"><span class="skeleton sk-line sk-block"></span></div></template>
+  </div>
+
+  <template x-if="prefs">
+  <div>
+    <div class="msg info sug-bar" x-show="pending().length || savedIn === 'all'">
+      <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-sparkles"/></svg>
+      <span x-text="pending().length ? t('details.n_suggested', {n: pending().length}) : t('details.all_kept')"></span>
+      <button class="btn primary sm" x-show="pending().length" @click="keepAll()" x-text="t('details.keep_all')"></button>
+    </div>
+
+    <template x-for="g in GROUPS" :key="g">
+      <section class="panel" :aria-labelledby="'dh-' + g">
+        <div class="group-head">
+          <h2 :id="'dh-' + g" x-text="t('details.groups.' + g)"></h2>
+          <span class="saved-note" role="status"><span x-show="savedIn === g || savedIn === 'all'">
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><span x-text="t('details.saved')"></span></span></span>
+        </div>
+
+        <template x-if="g === 'permit'">
+          <div>
+            <p class="muted small" x-show="!prefs.targets.length" x-text="t('details.no_targets')"></p>
+            <template x-for="(c, i) in prefs.targets" :key="c.code">
+              <div class="permit-row">
+                <b x-text="country(c.code)"></b>
+                <label class="field"><span x-text="t('setup.permit')"></span>
+                  <input :list="'permits-' + i" x-model="c.permit" @change="savePref(g, 'targets')"></label>
+                <datalist :id="'permits-' + i"><template x-for="k in PERMITS" :key="k"><option :value="t('setup.permit_' + k)"></option></template></datalist>
+                <label class="check"><input type="checkbox" class="switch" x-model="c.needs_sponsorship" @change="savePref(g, 'targets')">
+                  <span x-text="t('details.sponsorship')"></span></label>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="g === 'pay'">
+          <div class="grid pref-grid">
+            <template x-for="f in payFields()" :key="f">
+              <label class="field"><span x-text="t('setup.' + f)"></span><input x-model="prefs[f]" @change="savePref(g, f)"></label>
+            </template>
+          </div>
+        </template>
+
+        <div class="grid">
+          <template x-for="(k, i) in keys(g)" :key="k">
+            <div class="field" :class="suggested(k) && 'is-suggested'">
+              <label class="lbl" :for="'q-' + g + '-' + i" x-text="k"></label>
+              <div class="q-input">
+                <input :id="'q-' + g + '-' + i" :value="value(k)" @change="set(g, k, $event.target.value)"
+                       :aria-describedby="suggested(k) ? 'qs-' + g + '-' + i : null">
+                <button class="btn ghost icon" x-show="removable(g, k)" :aria-label="t('details.remove_q', {q: k})" :title="t('remove')"
+                        @click="set(g, k, '')"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+              </div>
+              <span class="hint sug" :id="'qs-' + g + '-' + i" x-show="suggested(k)">
+                <span x-text="t('details.suggested')"></span>
+                <button class="btn ghost sm" @click="keep(g, k)" :aria-label="t('details.keep_q', {q: k})" x-text="t('details.keep')"></button>
+              </span>
+            </div>
+          </template>
+        </div>
+
+        <template x-if="g === 'other'">
+          <form class="add-q" @submit.prevent="addQuestion()">
+            <input x-model="newQ" :placeholder="t('details.add_hint')" :aria-label="t('details.add_hint')">
+            <button class="btn sm" :disabled="!newQ.trim()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('details.add')"></span></button>
+          </form>
+        </template>
+      </section>
+    </template>
+  </div>
+  </template>
+
+  <section class="panel stack" x-data="uploadDocs" aria-labelledby="docs-h">
+    <h2 class="sub" id="docs-h" x-text="t('docs.title')"></h2>
+    <p class="muted small" x-text="t('docs.intro')"></p>
+    <ul class="small docs-kinds"><template x-for="k in ['degree', 'transcript', 'references', 'language', 'permit', 'other']" :key="k">
+      <li x-text="t('docs.kinds.' + k)"></li></template></ul>
+    <p class="small"><span x-text="t('docs.folder')"></span> <code x-text="folder"></code></p>
+    <div class="actions">
+      <label class="btn primary"><input type="file" multiple class="sr-only" accept=".pdf,.png,.jpg,.jpeg,.docx,.doc,.odt,.txt" @change="add($event)">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-upload"/></svg><span x-text="t('docs.add')"></span></label>
+      <button type="button" class="btn" @click="openFolder()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-folder"/></svg><span x-text="t('apply.open_folder')"></span></button>
+      <button type="button" class="btn ghost" @click="load()" x-text="t('docs.refresh')"></button>
+    </div>
+    <p class="msg bad small" role="alert" x-show="err" x-text="err"></p>
+    <p class="small muted" x-show="!docs.length" x-text="t('docs.none')"></p>
+    <ul class="files" x-show="docs.length" :aria-label="t('docs.title')">
+      <template x-for="d in docs" :key="d"><li><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="d"></span></li></template>
+    </ul>
+  </section>
+</div>

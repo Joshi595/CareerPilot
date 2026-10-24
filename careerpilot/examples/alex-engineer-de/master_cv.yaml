@@ -1,0 +1,74 @@
+# Example person (fictional): a software engineer applying in Germany.
+basics:
+  name: Alex Example
+  headline: Software Engineer (Python, Cloud)
+  email: alex.example@example.com
+  phone: "+49 151 0000000"
+  location: Munich, Germany
+  address: Beispielstraße 1, 80331 München
+  dob: ""
+  nationality: ""
+  links:
+    github: github.com/alex-example
+  photo: ""
+summaries:
+  main: >-
+    Software engineer with four years of backend work in Python and two years running services on AWS.
+    Built data pipelines and APIs used by internal analytics teams.
+experience:
+  - id: exp1
+    title: Backend Engineer
+    org: Example Logistics GmbH
+    location: Munich, Germany
+    start: 2022-03
+    end: present
+    bullets:
+      - id: exp1_b1
+        text: Built a **shipment tracking API** in Python (FastAPI) handling **2 million requests per day**.
+        tags: [python, fastapi, api, backend]
+      - id: exp1_b2
+        text: Moved nightly batch jobs to AWS Lambda and Step Functions, cutting run time from **6 hours to 40 minutes**.
+        tags: [aws, lambda, serverless, data-pipeline]
+      - id: exp1_b3
+        text: Wrote integration tests with pytest that raised coverage of the core services from 45% to 80%.
+        tags: [testing, pytest, quality]
+  - id: exp2
+    title: Junior Developer
+    org: Sample Software AG
+    location: Augsburg, Germany
+    start: 2020-08
+    end: 2022-02
+    bullets:
+      - id: exp2_b1
+        text: Maintained a Django web shop with 30,000 monthly users.
+        tags: [django, python, web]
+      - id: exp2_b2
+        text: Set up GitLab CI pipelines for three internal projects.
+        tags: [ci-cd, gitlab, devops]
+projects:
+  - id: proj1
+    title: Open-source CLI for CSV validation
+    link: github.com/alex-example/csvcheck
+    start: 2023
+    end: present
+    bullets:
+      - id: proj1_b1
+        text: Wrote a Python command-line tool that validates CSV files against a schema; 150 stars on GitHub.
+        tags: [python, open-source, cli]
+education:
+  - id: edu1
+    degree: B.Sc. Computer Science
+    school: Technical University of Example
+    location: Munich, Germany
+    start: 2016
+    end: 2020
+    details: "Thesis: Caching strategies for REST APIs"
+skills:
+  Programming: [Python, SQL, TypeScript]
+  Cloud & DevOps: [AWS (Lambda, S3, Step Functions), Docker, GitLab CI, Terraform]
+  Frameworks: [FastAPI, Django, pytest]
+languages:
+  - {name: English, level: C1}
+  - {name: German, level: Native}
+certifications:
+  - {id: cert1, name: AWS Certified Developer – Associate, issuer: Amazon Web Services, date: 2023-05}

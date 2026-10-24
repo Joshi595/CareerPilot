@@ -1,0 +1,4 @@
+name: Timeline
+family: Modern
+description: Dates in a column on the left, so the career path reads like a timeline.
+style: {font: Fira Sans, heading_font: Fira Sans, accent: "#0F766E", section_style: bar, date_pos: left, group: false}

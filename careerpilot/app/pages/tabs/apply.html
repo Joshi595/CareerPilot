@@ -1,0 +1,241 @@
+<div x-data="applyFlow">
+  <a class="back" href="#board" @click.prevent="$store.app.show('board')">
+    <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-left"/></svg><span x-text="t('tabs.board')"></span></a>
+
+  <div class="list" x-show="loading" aria-busy="true" :aria-label="t('apply.loading')">
+    <template x-for="n in 4" :key="n"><div class="item"><span class="skeleton sk-line"></span></div></template>
+  </div>
+  <div class="msg bad" x-show="!loading && !job" role="alert">
+    <span x-text="err || t('apply.not_found')"></span> <button class="btn sm" @click="init()" x-text="t('board.retry')"></button>
+  </div>
+
+<template x-if="job">
+<div>
+  <div class="page-head">
+    <div>
+      <h1 x-text="job.title || fit?.role || t('board.untitled')"></h1>
+      <p class="small">
+        <span x-text="job.company || fit?.company"></span>
+        <a class="ex-link" x-show="job.url" :href="job.url" target="_blank" rel="noopener">
+          <span x-text="t('applications.open_posting')"></span><span class="sr-only" x-text="t('board.new_tab')"></span></a>
+        <span class="badge" x-show="applicants" :title="t('board.applicants_d')" x-text="applicants?.text"></span>
+      </p>
+    </div>
+  </div>
+
+  <ol class="flow" :aria-label="t('apply.steps')">
+    <template x-for="(s, i) in STEPS" :key="s">
+      <li :class="i < stepNo() && 'done'" :aria-current="i === stepNo() ? 'step' : null">
+        <span class="dot" aria-hidden="true">
+          <svg class="i sm" x-show="i < stepNo()"><use href="/static/icons.svg#i-check"/></svg><span x-show="i >= stepNo()" x-text="i + 1"></span>
+        </span>
+        <span x-text="t('apply.step.' + s)"></span>
+      </li>
+    </template>
+  </ol>
+
+  <div class="msg warn" x-show="missing.length" role="status">
+    <span x-text="t('apply.missing_setup')"></span>
+    <template x-for="(k, i) in missing" :key="k">
+      <span><span x-show="i" aria-hidden="true"> · </span><a :href="'#' + fixAt(k).join('/')" @click.prevent="$store.app.show(...fixAt(k))"
+         x-text="t('apply.ready.' + k)"></a></span></template>
+  </div>
+  <div class="msg info" x-show="applied && !['review', 'ready'].includes(stage)" role="status">
+    <span x-text="applied && t('apply.applied_already', {date: fmtDate(applied.date_applied), role: applied.role, company: applied.company})"></span>
+    <a href="#applications" @click.prevent="$store.app.show('applications')" x-text="t('tabs.applications')"></a>
+  </div>
+  <div class="actions stop-row" x-show="stage && !['new', 'drafting'].includes(stage) && !done">
+    <span class="small inline" x-show="prop?.language"><label for="doc-lang" x-text="t('apply.doc_language')"></label>
+      <select id="doc-lang" class="auto" :disabled="!!busy" @change="const l = $event.target.value; $event.target.value = prop.language; startOver('', l)">
+        <template x-for="l in [...new Set([prop?.language, ...LANGS])]" :key="l">
+          <option :value="l" :selected="l === prop?.language" x-text="langName(l)"></option></template>
+      </select></span>
+    <button class="btn ghost sm" :disabled="!!busy" @click="startOver()" :title="t('apply.start_over_hint')">
+      <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-refresh-cw"/></svg><span x-text="t('apply.start_over')"></span></button>
+    <button class="btn ghost sm" :disabled="!!busy" @click="pause()" :title="t('apply.pause_hint')" x-text="t('apply.pause')"></button>
+  </div>
+  <div class="msg info busy-note" x-show="busy" role="status"><span class="spinner" aria-hidden="true"></span><span x-text="busy"></span></div>
+  <div class="msg bad" x-show="err" role="alert">
+    <span x-text="err"></span> <button class="btn sm" x-show="!!again" @click="again()" x-text="t('board.retry')"></button>
+  </div>
+
+  <!-- 1 Review cards -->
+  <template x-if="prop && stage === 'review'">
+    <div>
+      <div class="msg bad" x-show="fit?.blockers?.length" role="alert"><b x-text="t('apply.blockers')"></b> <span x-text="fit?.blockers?.join(' · ')"></span></div>
+      <p class="small" x-show="fit?.deadline || job.deadline"><span x-text="t('apply.deadline')"></span> <b x-text="fmtDate(fit?.deadline || job.deadline)"></b></p>
+      <section class="panel">
+        <h2 class="sub" x-text="t('apply.review_title')"></h2>
+        <p class="small muted" x-text="t('apply.review_intro')"></p>
+        <details class="how small">
+          <summary x-text="t('how.summary')"></summary>
+          <ol><template x-for="k in ['start', 'tailor', 'review', 'you', 'checks']" :key="k"><li x-text="t('how.steps.' + k)"></li></template></ol>
+          <p><span x-text="t('how.change')"></span>
+            <a href="#profile/writing" @click.prevent="$store.app.show('profile', 'writing')" x-text="t('how.change_link')"></a></p>
+        </details>
+        <div class="chips"><template x-for="k in prop.keywords" :key="k">
+          <span class="chip" :class="covered(k) && 'ok'"><svg class="i sm" x-show="covered(k)" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><span x-text="k"></span></span>
+        </template></div>
+        <p class="small msg warn" x-show="prop.missed?.length"><b x-text="t('apply.missed')"></b> <span x-text="prop.missed?.join(' · ')"></span></p>
+        <form class="add-rule" @submit.prevent="startOver(redo)" :aria-label="t('apply.redo_title')">
+          <label class="small" for="redo-in" x-text="t('apply.redo_title')"></label>
+          <div class="inline">
+            <input id="redo-in" x-model="redo" :placeholder="t('apply.redo_hint')">
+            <button class="btn sm" :disabled="!redo.trim() || !!busy" x-text="t('apply.redo_go')"></button>
+          </div>
+          <p class="small muted" x-text="t('apply.redo_note')"></p>
+        </form>
+        <form class="add-rule" @submit.prevent="addRule()" :aria-label="t('apply.rule_title')">
+          <label class="small" for="rule-in" x-text="t('apply.rule_title')"></label>
+          <div class="inline">
+            <select x-model="ruleFor" :aria-label="t('apply.rule_for')">
+              <option value="cv_rules" x-text="t('apply.cv')"></option><option value="style" x-text="t('apply.letter')"></option></select>
+            <input id="rule-in" x-model="rule" :placeholder="t('apply.rule_hint')">
+            <button class="btn sm" :disabled="!rule.trim()" x-text="t('apply.rule_add')"></button>
+          </div>
+          <p class="small muted" role="status" x-text="ruleNote || t('apply.rule_note')"></p>
+        </form>
+      </section>
+      <div class="change-sum" x-show="!prop.final">
+        <p x-text="summary()"></p>
+        <div class="chips" role="group" :aria-label="t('apply.filter.label')">
+          <template x-for="f in ['all', 'flagged', 'reworded']" :key="f">
+            <button class="chip" :aria-pressed="show === f" @click="show = f" x-text="t('apply.filter.' + f)"></button></template>
+        </div>
+      </div>
+      <template x-for="(group, gi) in [prop.items, prop.letter]" :key="gi">
+        <section class="rev-group" :class="gi ? 'letter' : 'cv'" x-show="group.length">
+          <h2 class="sub rev-h">
+            <svg class="i" aria-hidden="true"><use :href="'/static/icons.svg#i-' + (gi ? 'mail' : 'file-text')"/></svg>
+            <span x-text="gi ? t('apply.letter') : t('apply.cv')"></span>
+            <span class="count" x-text="t(gi ? 'apply.n_paragraphs' : 'apply.n_changes', {n: group.length})"></span>
+          </h2>
+          <template x-for="c in group.filter(c => visible(c, gi))" :key="c.id">
+            <article class="panel rev" :class="dec[c.id].decision === 'reject' && 'off'">
+              <div class="rev-head">
+                <span class="small" x-text="c.section"></span>
+                <span class="badge" x-show="!prop.final" x-text="t('apply.kind.' + kind(c, gi))"></span>
+                <span class="badge warn" x-show="c.flag"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-alert-triangle"/></svg><span x-text="t('apply.check_this')"></span></span>
+              </div>
+              <p class="small" x-show="c.flag" x-text="t('apply.flagged')"></p>
+              <p class="small muted" x-show="c.reason" x-text="c.reason"></p>
+              <template x-if="'order' in c">
+                <div class="order-cmp">
+                  <div><span class="small muted" x-text="t('apply.before')"></span><ol><template x-for="x in steps(c.old)"><li x-text="x"></li></template></ol></div>
+                  <div><span class="small muted" x-text="t('apply.after')"></span><ol><template x-for="x in steps(c.new)"><li x-text="x"></li></template></ol>
+                    <p class="small muted" x-show="leftOut(c.new)" x-text="leftOut(c.new)"></p></div>
+                </div>
+              </template>
+              <template x-if="!('order' in c)">
+                <div class="stack">
+                  <p class="diff-text" x-show="!editing(c) && said(diffOf(c), 'now')"><template x-for="(w, k) in side(diffOf(c), 'now')" :key="k"><span :class="[w.op, w.b && 'b']" x-text="w.t"></span></template></p>
+                  <p class="diff-was" x-show="!editing(c) && c.old"><span class="muted" x-text="t('apply.before') + ': '"></span><template x-for="(w, k) in side(diffOf(c), 'was')" :key="k"><span :class="[w.op, w.b && 'b']" x-text="w.t"></span></template></p>
+                  <textarea x-show="editing(c)" x-model="dec[c.id].text" :aria-label="c.section"></textarea>
+                </div>
+              </template>
+              <div class="rev-acts">
+                <div class="seg" role="radiogroup" :aria-label="c.section" x-show="!prop.final">
+                  <template x-for="d in ['accept', 'reject', 'revise']" :key="d">
+                    <button role="radio" :aria-checked="dec[c.id].decision === d" @click="dec[c.id].decision = d"
+                            x-text="d === 'accept' ? t('apply.accept') : d === 'revise' ? t('apply.revise') : c.old ? t('apply.keep_mine') : t('remove')"></button>
+                  </template>
+                </div>
+                <button class="btn ghost sm" x-show="!('order' in c) && !prop.final" @click="edits[c.id] = !editing(c)">
+                  <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-pencil"/></svg>
+                  <span x-text="editing(c) ? t('apply.show_changes') : t('apply.edit_text')"></span></button>
+              </div>
+              <input x-show="prop.final || dec[c.id].decision === 'revise'" x-model="dec[c.id].comment"
+                     :placeholder="prop.final ? t('apply.ask_ai_hint') : t('apply.revise_hint')" :aria-label="prop.final ? t('apply.ask_ai_hint') : t('apply.revise_hint')">
+            </article>
+          </template>
+        </section>
+      </template>
+      <div class="sticky savebar">
+        <span class="lbl small" x-text="prop.final ? t('apply.changed', {n: changedCount()}) : t('apply.decided', {a: tally('accept'), r: tally('reject'), c: tally('revise')})"></span>
+        <button class="btn ghost" x-show="prop.final" :disabled="!!busy" @click="submit(true)" x-text="t('apply.back_to_docs')"></button>
+        <button class="btn primary" :disabled="!!busy" @click="submit()" x-text="prop.final ? t('apply.save_rebuild') : t('apply.submit_review')"></button>
+      </div>
+    </div>
+  </template>
+
+  <!-- 2 Documents and finish -->
+  <template x-if="stage === 'ready'">
+    <div>
+      <section class="panel stack">
+        <h2 class="sub" x-text="t('apply.docs_title')"></h2>
+        <div class="actions doc-files">
+          <template x-for="f in files" :key="f">
+            <a class="btn" :href="pdf(f)" target="_blank"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-file-text"/></svg><span x-text="f"></span></a>
+          </template>
+          <button class="btn" @click="openFolder()" :title="t('apply.open_folder_hint')">
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-folder"/></svg><span x-text="t('apply.open_folder')"></span></button>
+        </div>
+        <p class="small muted" x-show="folder"><span x-text="t('apply.saved_in')"></span> <code x-text="folder"></code></p>
+        <p class="small" x-show="folder && docs.length" x-text="t('apply.also_there', {list: docs.join(', ')})"></p>
+        <p class="small msg info" x-show="folder && !docs.length">
+          <span x-text="t('apply.no_docs')"></span>
+          <a href="#profile/details" @click.prevent="$store.app.show('profile', 'details')" x-text="t('apply.add_docs')"></a></p>
+        <h3 class="sub" x-text="t('apply.checks')"></h3>
+        <ul class="reqs">
+          <template x-for="[doc, r] in Object.entries(checks || {})" :key="doc">
+            <li :class="r.fails.length ? 'no' : 'yes'">
+              <svg class="i sm" aria-hidden="true"><use :href="'/static/icons.svg#i-' + (r.fails.length ? 'x' : 'check')"/></svg>
+              <span><b x-text="doc === 'cv' ? t('apply.cv') : t('apply.letter')"></b>:
+                <span x-text="r.fails.length ? t('apply.checks_failed', {n: r.fails.length}) : t('apply.checks_ok')"></span></span>
+              <template x-for="f in r.fails" :key="f"><span class="ev bad" x-text="f"></span></template>
+              <template x-for="w in r.warns" :key="w"><span class="ev" x-text="w"></span></template>
+              <span class="ev" x-show="r.coverage[1].length" x-text="t('apply.missing_kw') + ' ' + r.coverage[1].join(', ')"></span>
+            </li>
+          </template>
+        </ul>
+        <h3 class="sub" x-text="t('apply.docs_ai')"></h3>
+        <label class="field"><span class="small muted" x-text="t('apply.docs_ai_hint')"></span>
+          <textarea rows="2" x-model="ask" :placeholder="t('apply.docs_ai_placeholder')"></textarea></label>
+        <div class="actions"><button class="btn primary" :disabled="!!busy" @click="changeDocs()" x-text="t('apply.docs_ai_go')"></button></div>
+        <ul class="small" x-show="changes.length"><template x-for="c in changes" :key="c"><li x-text="c"></li></template></ul>
+        <ul class="doc-diffs" x-show="diffs.length" :aria-label="t('apply.what_changed')">
+          <template x-for="d in diffs" :key="d.id">
+            <li><span class="small muted" x-text="d.section"></span>
+              <p class="diff-text" x-show="said(wordDiff(d.old, d.new), 'now')"><template x-for="(w, k) in side(wordDiff(d.old, d.new), 'now')" :key="k"><span :class="[w.op, w.b && 'b']" x-text="w.t"></span></template></p>
+              <p class="diff-was" x-show="d.old"><span class="muted" x-text="t('apply.before') + ': '"></span><template x-for="(w, k) in side(wordDiff(d.old, d.new), 'was')" :key="k"><span :class="[w.op, w.b && 'b']" x-text="w.t"></span></template></p>
+              <span class="small muted" x-show="d.reason" x-text="d.reason"></span></li>
+          </template>
+        </ul>
+        <section x-show="usage.length">
+          <h3 class="sub" x-text="t('apply.ai_use')"></h3>
+          <table class="usage">
+            <thead><tr><th x-text="t('apply.u_step')"></th><th x-text="t('apply.u_in')"></th><th x-text="t('apply.u_cached')"></th><th x-text="t('apply.u_out')"></th><th x-text="t('apply.u_cost')"></th></tr></thead>
+            <tbody><template x-for="u in [...usage, usageTotal(usage)]">
+              <tr :class="u.total && 'total'"><td x-text="stepName(u.step) + (u.error ? ' ✗' : '')"></td><td x-text="kTok(u.input)"></td><td x-text="kTok(u.cached)"></td><td x-text="kTok(u.output)"></td><td x-text="'$' + (u.cost_usd ?? 0).toFixed(2)"></td></tr>
+            </template></tbody>
+          </table>
+          <p class="small muted" x-text="t('apply.u_note')"></p>
+        </section>
+        <div class="actions">
+          <select class="design-pick" x-model="design" :aria-label="t('designs.pick')">
+            <optgroup x-show="looks.length" :label="t('designs.looks')"><template x-for="n in looks" :key="n"><option :value="n" :selected="n === design" x-text="n"></option></template></optgroup>
+            <optgroup :label="t('designs.all')"><template x-for="d in designs" :key="d.id"><option :value="d.id" :selected="d.id === design" x-text="d.name"></option></template></optgroup>
+          </select>
+          <button class="btn" :disabled="!!busy" @click="rebuild()" x-text="t('apply.rebuild')"></button>
+          <button class="btn" :disabled="!!busy" @click="editText()" :title="t('apply.change_text_hint')">
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-pencil"/></svg><span x-text="t('apply.change_text')"></span></button>
+        </div>
+      </section>
+      <section class="panel stack">
+        <h2 class="sub" x-text="t('apply.finish_title')"></h2>
+        <div class="grid">
+          <label class="field"><span x-text="t('apply.method')"></span><select x-model="method">
+            <template x-for="m in ['company website', 'email', 'job board', 'other']" :key="m"><option :value="m" :selected="m === method" x-text="t('apply.methods.' + m.replace(' ', '_'))"></option></template></select></label>
+          <label class="field"><span x-text="t('apply.note')"></span><input x-model="note"></label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" :disabled="!!busy" @click="finish('applied')">
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-send"/></svg><span x-text="t('apply.i_applied')"></span></button>
+          <button class="btn" :disabled="!!busy" @click="finish('pending')" x-text="t('apply.save_pending')"></button>
+        </div>
+      </section>
+    </div>
+  </template>
+</div>
+</template>
+</div>

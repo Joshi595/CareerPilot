@@ -1,0 +1,419 @@
+<div x-data="setup">
+  <div class="msg bad" x-show="loadErr" role="alert"><span x-text="t('setup.load_failed') + ' ' + loadErr"></span></div>
+  <div x-show="!prefs && !loadErr" aria-busy="true"><span class="skeleton sk-line sk-block"></span></div>
+
+<template x-if="prefs">
+<div class="wizard">
+  <aside class="wizard-rail">
+    <h1 x-text="t('setup.title')"></h1>
+    <p class="muted small" x-text="t('setup.intro')"></p>
+    <ol class="steps rail" :aria-label="t('setup.steps_label')">
+      <template x-for="(s, i) in STEPS" :key="s">
+        <li>
+          <button type="button" class="step" :class="i + 1 < step && 'done'" :aria-current="i + 1 === step ? 'step' : null"
+                  :disabled="i + 1 >= step || !!busy" @click="go(i + 1)">
+            <span class="dot" aria-hidden="true">
+              <svg class="i sm" x-show="i + 1 < step"><use href="/static/icons.svg#i-check"/></svg><span x-show="i + 1 >= step" x-text="i + 1"></span></span>
+            <span class="grow"><span x-text="stepName(i + 1)"></span>
+              <small class="opt" x-show="i + 1 > REQUIRED" x-text="t('setup.optional')"></small></span>
+            <span class="sr-only" x-text="i + 1 < step ? t('setup.done') : ''"></span>
+          </button>
+        </li>
+      </template>
+    </ol>
+  </aside>
+
+  <section class="wizard-main" aria-labelledby="setup-h">
+    <p class="step-count small muted" x-text="t('setup.step', {n: step, total: STEPS.length})"></p>
+    <h2 id="setup-h" tabindex="-1"><span x-text="stepName(step)"></span>
+      <small class="opt" x-show="step > REQUIRED" x-text="t('setup.optional')"></small></h2>
+    <div class="msg info busy-note" x-show="busy" role="status"><span class="spinner" aria-hidden="true"></span><span x-text="busy"></span></div>
+    <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+
+    <!-- 1 What they look for -->
+    <template x-if="step === 1">
+    <form class="stack" @submit.prevent="wantDone()">
+      <p class="muted" x-text="t('setup.want_intro')"></p>
+      <div class="cards two" role="group" :aria-label="t('setup.steps.want')">
+        <label class="opt-card"><input type="checkbox" class="sr-only" :checked="isStudent()" @change="toggleStudent()">
+          <b x-text="t('setup.student_all')"></b><small x-text="t('setup.student_all_d')"></small></label>
+        <template x-for="j in JOB_TYPES" :key="j">
+          <label class="opt-card"><input type="checkbox" class="sr-only" :checked="prefs.job_types.includes(j)" @change="toggleType(j)">
+            <b x-text="t('jobtypes.' + j)"></b><small x-text="t('jobtypes_d.' + j)"></small></label>
+        </template>
+      </div>
+      <section class="stack" x-show="prefs.job_types.length > 1" :aria-label="t('setup.focus')">
+        <h3 class="sub" x-text="t('setup.focus')"></h3>
+        <p class="muted" x-text="t('setup.focus_d')"></p>
+        <div class="chips">
+          <template x-for="j in prefs.job_types" :key="j">
+            <label class="chip"><input type="checkbox" :checked="!(prefs.side_types || []).includes(j)" @change="toggleSide(j)"><span x-text="t('jobtypes.' + j)"></span></label>
+          </template>
+        </div>
+      </section>
+
+      <section class="panel stack" x-show="wants(...STUDENT_TYPES)" :aria-label="t('setup.follow_title')">
+        <h3 class="sub" x-text="t('setup.follow_title')"></h3>
+        <div class="grid">
+          <label class="field" x-show="wants('student')"><span x-text="t('setup.follow.hours')"></span>
+            <input x-model="prefs.hours" inputmode="numeric" :placeholder="t('setup.follow.hours_ph')"></label>
+          <label class="field"><span x-text="t('setup.follow.graduation')"></span>
+            <input x-model="graduation" :placeholder="t('setup.follow.graduation_ph')"></label>
+          <label class="field" x-show="wants('internship')"><span x-text="t('setup.follow.months')"></span>
+            <input x-model="prefs.internship_months" inputmode="numeric" :placeholder="t('setup.follow.months_ph')"></label>
+          <label class="field" x-show="wants('thesis')"><span x-text="t('setup.follow.thesis')"></span>
+            <select x-model="prefs.thesis_level"><template x-for="l in ['', 'bachelor', 'master']" :key="l">
+              <option :value="l" :selected="l === prefs.thesis_level" x-text="t('setup.follow.thesis_' + (l || 'any'))"></option></template></select></label>
+        </div>
+        <label class="check" x-show="wants('internship')"><input type="checkbox" class="switch" x-model="prefs.mandatory_internship">
+          <span x-text="t('setup.follow.mandatory')"></span></label>
+        <p class="hint" x-text="t('setup.follow_hint')"></p>
+      </section>
+      <div class="actions">
+        <button class="btn primary" :disabled="!!busy || !prefs.job_types.length" x-text="t('setup.continue')"></button>
+      </div>
+    </form>
+    </template>
+
+    <!-- 2 Your CV -->
+    <template x-if="step === 2">
+    <div class="stack">
+      <div class="msg warn" x-show="!agentNames.length">
+        <b x-text="t('setup.ai_none_title')"></b> <span x-text="t('setup.ai_none')"></span>
+        <div class="small">Claude: <a href="https://claude.com/download" target="_blank" rel="noopener">claude.com/download</a> ·
+          ChatGPT: <a href="https://developers.openai.com/codex" target="_blank" rel="noopener">developers.openai.com/codex</a> ·
+          Google: <a href="https://antigravity.google" target="_blank" rel="noopener">antigravity.google</a></div>
+        <div class="actions"><button type="button" class="btn sm" @click="recheck()" x-text="t('setup.ai_check')"></button></div>
+      </div>
+      <p class="small muted" x-show="agentNames.length === 1" x-text="t('setup.ai_found', {name: agentNames[0]})"></p>
+      <label class="field" x-show="agentNames.length > 1"><span x-text="t('setup.ai_title')"></span>
+        <select class="auto" @change="setAgent($event.target.value)">
+          <template x-for="a in agentNames" :key="a"><option :value="a" :selected="a === prefs.agent" x-text="a"></option></template></select></label>
+
+      <template x-if="phase === 'upload'">
+        <div class="stack">
+          <p class="muted" x-text="t('setup.cv_intro')"></p>
+          <div>
+            <label class="btn primary"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-upload"/></svg>
+              <span x-text="t('setup.upload_button')"></span>
+              <input type="file" class="sr-only" accept=".pdf,.docx,.doc,.txt,.zip,.json" @change="upload($event)" :disabled="!!busy"></label>
+            <p class="small muted" x-text="t('setup.upload_types')"></p>
+          </div>
+          <details><summary class="small" x-text="t('setup.paste_instead')"></summary>
+            <div class="stack paste">
+              <textarea x-model="text" rows="6" :aria-label="t('setup.paste_instead')"></textarea>
+              <div><button type="button" class="btn sm" :disabled="!!busy || !text.trim()" @click="paste()" x-text="t('setup.paste_go')"></button></div>
+            </div>
+          </details>
+          <p class="small"><button type="button" class="link" @click="empty()" x-text="t('setup.no_cv')"></button></p>
+          <p class="small muted"><span x-text="t('setup.example')"></span>
+            <template x-for="ex in st.examples" :key="ex"><button type="button" class="link ex-link" @click="example(ex)" x-text="ex"></button></template></p>
+        </div>
+      </template>
+
+      <template x-if="phase === 'summary' && draft">
+        <div>
+          <p x-text="t('setup.found', {jobs: count('experience'), edu: count('education'), skills: skillCount(), langs: count('languages')})"></p>
+          <template x-for="e in draft.experience" :key="e.id">
+            <div class="row small"><span><b x-text="e.title"></b> · <span x-text="e.org"></span></span><span class="muted" x-text="(e.start || '') + ' – ' + (e.end || '')"></span></div>
+          </template>
+          <template x-for="e in draft.education" :key="e.id">
+            <div class="row small"><span><b x-text="e.degree"></b> · <span x-text="e.school"></span></span><span class="muted" x-text="(e.start || '') + ' – ' + (e.end || '')"></span></div>
+          </template>
+          <p class="small muted" x-text="t('setup.summary_hint')"></p>
+          <div class="actions">
+            <button type="button" class="btn primary" :disabled="!!busy" @click="looksRight()" x-text="t('setup.looks_right')"></button>
+            <button type="button" class="btn" :disabled="!!busy" @click="fixIt()" x-text="t('setup.fix_it')"></button>
+            <button type="button" class="btn ghost" :disabled="!!busy" @click="again()" x-text="t('setup.other_cv')"></button>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="phase === 'questions'">
+        <div class="stack">
+          <p class="muted" x-text="t('setup.questions_intro')"></p>
+          <template x-for="q in questions" :key="q.id">
+            <label class="field"><span x-text="q.question"></span><textarea x-model="replies[q.id]" rows="2"></textarea></label>
+          </template>
+          <div class="actions">
+            <button type="button" class="btn primary" :disabled="!!busy" @click="addAnswers()" x-text="t('setup.add_answers')"></button>
+            <button type="button" class="btn ghost" @click="go(3)" x-text="t('setup.skip_questions')"></button>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="phase === 'changes'">
+        <div>
+          <p class="muted" x-text="t('setup.changes_intro')"></p>
+          <ul class="changes small"><template x-for="c in changes" :key="c"><li x-text="c"></li></template></ul>
+          <div class="actions">
+            <button type="button" class="btn primary" :disabled="!!busy" @click="keepChanges()" x-text="t('setup.keep_changes')"></button>
+            <button type="button" class="btn ghost" @click="go(3)" x-text="t('setup.skip_changes')"></button>
+          </div>
+        </div>
+      </template>
+    </div>
+    </template>
+
+    <!-- 3 About you: pre-filled from the CV -->
+    <template x-if="step === 3 && me">
+    <form class="stack" @submit.prevent="aboutDone()">
+      <p class="muted" x-text="t('setup.about_intro')"></p>
+      <div class="cv-head">
+        <span class="avatar" aria-hidden="true"><img x-show="photoUrl()" :src="photoUrl()" alt="" width="64" height="64"><svg class="i" x-show="!photoUrl()"><use href="/static/icons.svg#i-user"/></svg></span>
+        <div>
+          <label class="btn sm"><span x-text="st.profile.basics.photo ? t('profile.change_photo') : t('profile.add_photo')"></span>
+            <input type="file" class="sr-only" accept=".png,.jpg,.jpeg" @change="photo($event)"></label>
+          <p class="hint small muted" x-text="t('profile.photo')"></p>
+        </div>
+      </div>
+      <div class="grid">
+        <label class="field"><span x-text="t('profile.name')"></span><input x-model="me.name" autocomplete="name" required></label>
+        <label class="field"><span x-text="t('profile.email')"></span><input type="email" x-model="me.email" autocomplete="email" spellcheck="false"></label>
+        <label class="field"><span x-text="t('profile.phone')"></span><input type="tel" x-model="me.phone" autocomplete="tel"></label>
+        <label class="field"><span x-text="t('setup.city')"></span><input x-model="me.city" autocomplete="address-level2"></label>
+        <label class="field"><span x-text="t('setup.home')"></span>
+          <select x-model="prefs.home_country" required>
+            <option value="" x-text="t('setup.pick_country')"></option>
+            <template x-for="[code, name] in Object.entries(st.countries)" :key="code"><option :value="code" :selected="code === prefs.home_country" x-text="name"></option></template>
+          </select></label>
+      </div>
+      <div class="field">
+        <span class="lbl" x-text="t('setup.links')"></span>
+        <template x-for="(l, i) in links" :key="i">
+          <div class="inline link-row">
+            <input class="key" x-model="l.k" :placeholder="t('setup.link_name')" :aria-label="t('setup.link_name')">
+            <input inputmode="url" x-model="l.v" placeholder="https://…" spellcheck="false" :aria-label="t('setup.link_url')">
+            <button type="button" class="btn ghost icon" @click="links.splice(i, 1)" :aria-label="t('remove')" :title="t('remove')">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+          </div>
+        </template>
+        <div><button type="button" class="btn ghost sm" @click="links.push({k: '', v: ''})">
+          <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('setup.add_link')"></span></button></div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(2)" x-text="t('back')"></button>
+        <button class="btn primary" :disabled="!!busy || !me.name.trim() || !prefs.home_country" x-text="t('setup.continue')"></button>
+      </div>
+    </form>
+    </template>
+
+    <!-- 4 What you're looking for -->
+    <template x-if="step === 4">
+    <form class="stack" @submit.prevent="lookingDone()">
+      <label class="field"><span x-text="t('setup.titles_short')"></span><textarea x-model="titles" rows="2" required></textarea>
+        <span class="hint" x-text="t('setup.titles_hint')"></span></label>
+      <template x-for="k in keywords" :key="k.lang">
+        <label class="field"><span x-text="t('setup.keywords', {lang: lang(k.lang)})"></span><input x-model="k.words"></label>
+      </template>
+      <div><button type="button" class="btn ghost sm" :disabled="!!busy" @click="suggest()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-sparkles"/></svg><span x-text="t('setup.suggest_again')"></span></button></div>
+
+      <fieldset class="field">
+        <legend class="lbl" x-text="t('setup.targets')"></legend>
+        <template x-for="(c, i) in prefs.targets" :key="c.code">
+          <div class="permit-row">
+            <b x-text="country(c.code)"></b>
+            <label class="field"><span x-text="t('setup.permit')"></span>
+              <input :list="'sp-permits-' + i" x-model="c.permit"></label>
+            <datalist :id="'sp-permits-' + i"><template x-for="k in PERMITS" :key="k"><option :value="t('setup.permit_' + k)"></option></template></datalist>
+            <div class="inline">
+              <label class="check"><input type="checkbox" class="switch" x-model="c.needs_sponsorship"><span x-text="t('details.sponsorship')"></span></label>
+              <button type="button" class="btn ghost icon" x-show="prefs.targets.length > 1" @click="prefs.targets.splice(i, 1)"
+                      :aria-label="t('setup.remove_country', {c: country(c.code)})"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+            </div>
+          </div>
+        </template>
+        <select class="auto" x-model="pick" @change="addTarget()" :aria-label="t('setup.add_country')">
+          <option value="" x-text="t('setup.add_country')"></option>
+          <template x-for="[code, name] in Object.entries(st.countries)" :key="code"><option :value="code" x-text="name"></option></template>
+        </select>
+      </fieldset>
+
+      <div class="grid">
+        <label class="field"><span x-text="t('setup.where_short')"></span>
+          <input :value="prefs.places.join(', ')" @change="prefs.places = csv($event.target.value)"></label>
+        <label class="field"><span x-text="t('setup.radius')"></span>
+          <input type="number" min="0" max="500" inputmode="numeric" x-model.number="prefs.radius_km"></label>
+        <label class="field"><span x-text="t('setup.remote')"></span>
+          <select x-model="prefs.remote"><template x-for="r in ['any', 'remote', 'hybrid', 'onsite']" :key="r">
+            <option :value="r" :selected="r === prefs.remote" x-text="t('setup.remote_' + r)"></option></template></select></label>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(3)" x-text="t('back')"></button>
+        <button class="btn primary" :disabled="!!busy || !titles.trim()" x-text="t('setup.continue')"></button>
+      </div>
+    </form>
+    </template>
+
+    <!-- 5 Application details (the Profile part) -->
+    <template x-if="step === 5">
+    <div>
+      <div x-include="details.html"></div>
+      <label class="check small"><input type="checkbox" x-model="docsLater"> <span x-text="t('setup.docs_later')"></span></label>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(4)" x-text="t('back')"></button>
+        <button type="button" class="btn primary" :disabled="!!busy" @click="detailsDone()" x-text="t('setup.continue')"></button>
+      </div>
+    </div>
+    </template>
+
+    <!-- 6 Cover-letter style -->
+    <template x-if="step === 6">
+    <div class="stack">
+      <section class="panel stack" aria-labelledby="s-cvrules">
+        <h3 id="s-cvrules" class="sub" x-text="t('profile.cv_rules_title')"></h3>
+        <p class="muted small" x-text="t('setup.cv_rules_intro')"></p>
+        <textarea class="grow-box" rows="6" x-model="cvRules" :aria-label="t('profile.cv_rules_title')" :placeholder="t('profile.cv_rules_empty')"></textarea>
+        <div class="chips" role="group" :aria-label="t('profile.examples')">
+          <template x-for="c in t('profile.cv_rules_chips')" :key="c">
+            <button type="button" class="chip" @click="addRule('cvRules', c)" x-text="'+ ' + c"></button></template>
+        </div>
+        <div><button type="button" class="btn sm" x-show="!cvRules.trim()" @click="cvRules = st.default_cv_rules" x-text="t('setup.use_defaults')"></button></div>
+      </section>
+      <section class="panel stack" aria-labelledby="s-style">
+        <h3 id="s-style" class="sub" x-text="t('profile.style_title')"></h3>
+        <p class="muted small" x-text="t('setup.style.intro')"></p>
+        <textarea class="grow-box" rows="8" x-model="styleText" :aria-label="t('profile.style_title')"></textarea>
+        <div class="chips" role="group" :aria-label="t('profile.examples')">
+          <template x-for="c in t('profile.style_chips')" :key="c">
+            <button type="button" class="chip" @click="addRule('styleText', c)" x-text="'+ ' + c"></button></template>
+        </div>
+        <div><button type="button" class="btn sm" x-show="!styleText.trim()" @click="styleText = st.default_style" x-text="t('setup.use_defaults')"></button></div>
+      </section>
+      <div class="stack" data-writing="cvRules,styleText">
+        <p class="muted small" x-text="t('ask.writing_intro')"></p>
+        <div x-include="ask.html"></div>
+      </div>
+      <details class="panel how">
+      <summary x-text="t('setup.style.helpers')"></summary>
+      <div class="stack">
+      <div class="cards two" role="radiogroup" :aria-label="t('setup.steps.writing')">
+        <template x-for="w in ['own', 'none']" :key="w">
+          <label class="opt-card"><input type="radio" name="style-way" class="sr-only" :value="w" x-model="styleWay">
+            <b x-text="t('setup.style.' + w)"></b><small x-text="t('setup.style.' + w + '_d')"></small></label>
+        </template>
+      </div>
+
+      <template x-if="styleWay === 'own'">
+        <div class="stack">
+          <div><label class="btn"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-upload"/></svg><span x-text="t('setup.style.upload')"></span>
+            <input type="file" class="sr-only" multiple accept=".pdf,.docx,.txt,.md" @change="letters($event)" :disabled="!!busy"></label></div>
+          <label class="field"><span x-text="t('setup.style.paste')"></span><textarea x-model="samples" rows="8"></textarea>
+            <span class="hint" x-text="t('setup.style.voice_only')"></span></label>
+          <div><button type="button" class="btn primary" :disabled="!!busy || samples.trim().split(/\s+/).length < 60" @click="makeStyle()"
+                       x-text="t('setup.style.learn')"></button></div>
+        </div>
+      </template>
+
+      <template x-if="styleWay === 'none'">
+        <div class="stack">
+          <div class="grid">
+            <label class="field"><span x-text="t('setup.tone')"></span>
+              <select x-model="tone"><template x-for="o in ['formal', 'neutral', 'friendly']" :key="o"><option :value="o" :selected="o === tone" x-text="t('setup.tone_' + o)"></option></template></select></label>
+            <label class="field"><span x-text="t('setup.length')"></span>
+              <select x-model="length"><template x-for="o in ['short', 'standard']" :key="o"><option :value="o" :selected="o === length" x-text="t('setup.length_' + o)"></option></template></select></label>
+          </div>
+          <div><button type="button" class="btn" :disabled="!!busy" @click="getOpenings()">
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-sparkles"/></svg><span x-text="t('setup.style.openings')"></span></button></div>
+          <template x-if="openings.length">
+            <div class="stack">
+              <p class="muted small" x-text="t('setup.style.pick')"></p>
+              <div class="openings" role="radiogroup" :aria-label="t('setup.style.pick')">
+                <template x-for="(o, i) in openings" :key="i">
+                  <label class="opt-card"><input type="radio" name="opening" class="sr-only" :value="i" x-model.number="opening">
+                    <b x-text="o.style"></b><span class="opening" x-text="o.text"></span></label>
+                </template>
+              </div>
+              <div><button type="button" class="btn primary" :disabled="!!busy || opening < 0" @click="makeStyle()" x-text="t('setup.style.use')"></button></div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      </div>
+      </details>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(5)" x-text="t('back')"></button>
+        <button type="button" class="btn primary" :disabled="!!busy" @click="styleDone()" x-text="t('setup.continue')"></button>
+      </div>
+    </div>
+    </template>
+
+    <!-- 7 CV design (the Designs gallery; a click picks) -->
+    <template x-if="step === 7">
+    <div>
+      <div x-data="designs">
+        <p class="muted" x-text="t('setup.design_intro')"></p>
+        <div class="msg bad" x-show="loadErr" role="alert">
+          <span x-text="t('designs.load_failed') + ' ' + loadErr"></span> <button type="button" class="btn sm" @click="load()" x-text="t('board.retry')"></button></div>
+        <ul class="design-grid" x-show="loading" aria-busy="true" :aria-label="t('designs.loading')">
+          <template x-for="n in 8" :key="n"><li><span class="design-card"><span class="thumb skeleton"></span><span class="skeleton sk-text"></span></span></li></template>
+        </ul>
+        <ul class="design-grid" x-show="!loading">
+          <template x-for="it in [...items('looks'), ...items('all')]" :key="it.id">
+            <li>
+              <button type="button" class="design-card" :class="it.id === current && 'on'" :aria-pressed="it.id === current"
+                      @click="look = it.id; use(it.id); hide('design')">
+                <span class="thumb skeleton"><img :src="thumb(it.id)" :alt="t('designs.thumb_alt', {name: it.name})" width="210" height="297" loading="lazy" decoding="async"
+                      @load="$el.parentElement.classList.remove('skeleton')" @error="$el.parentElement.classList.remove('skeleton'); failed[it.id] = true"></span>
+                <span class="small muted" x-show="failed[it.id]" x-text="t('designs.thumb_failed')"></span>
+                <span class="design-name"><b x-text="it.name"></b><span class="badge accent" x-show="it.id === current" x-text="t('designs.in_use')"></span></span>
+                <span class="small muted" x-text="it.sub"></span>
+              </button>
+            </li>
+          </template>
+        </ul>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(6)" x-text="t('back')"></button>
+        <button type="button" class="btn primary" @click="go(8)" x-text="t('setup.continue')"></button>
+        <button type="button" class="btn ghost" @click="go(8)" x-text="t('setup.skip_now')"></button>
+      </div>
+    </div>
+    </template>
+
+    <!-- 8 Email, 8 Alerts: the Settings parts -->
+    <template x-if="step === 8">
+    <div>
+      <div x-include="email.html"></div>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(7)" x-text="t('back')"></button>
+        <button type="button" class="btn primary" @click="go(9)" x-text="t('setup.continue')"></button>
+        <button type="button" class="btn ghost" @click="go(9)" x-text="t('setup.skip_now')"></button>
+      </div>
+    </div>
+    </template>
+    <template x-if="step === 9">
+    <div>
+      <div x-include="alerts.html"></div>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(8)" x-text="t('back')"></button>
+        <button type="button" class="btn primary" @click="go(10)" x-text="t('setup.continue')"></button>
+        <button type="button" class="btn ghost" @click="go(10)" x-text="t('setup.skip_now')"></button>
+      </div>
+    </div>
+    </template>
+
+    <!-- 10 Autopilot: the daily search -->
+    <template x-if="step === 10">
+    <div class="stack">
+      <p class="muted" x-text="t('setup.auto_intro')"></p>
+      <div class="set">
+        <div><div class="set-t" x-text="t('setup.daily')"></div><div class="set-d" x-text="t('setup.daily_d')"></div></div>
+        <div class="ctl">
+          <input type="checkbox" class="switch" x-model="daily" :aria-label="t('setup.daily')">
+          <input type="time" class="auto" x-model="time" :disabled="!daily" :aria-label="t('setup.daily_time')">
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" @click="go(9)" x-text="t('back')"></button>
+        <button type="button" class="btn primary" :disabled="!!busy || (daily && !time)" @click="finish(true)" x-text="t('setup.finish')"></button>
+        <button type="button" class="btn ghost" :disabled="!!busy" @click="finish(false)" x-text="t('setup.skip_finish')"></button>
+      </div>
+    </div>
+    </template>
+  </section>
+</div>
+</template>
+</div>

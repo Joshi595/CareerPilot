@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareerPilot</title>
+<meta name="theme-color" content="#F2F4F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1419" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/app.css">
+<meta name="cp-token" content="{{TOKEN}}">
+<script src="/static/js/app.js"></script>
+<script src="/static/js/setup.js"></script>
+<script src="/static/js/profile.js"></script>
+<script src="/static/js/apply.js"></script>
+<script src="/static/js/applications.js"></script>
+<script src="/static/js/needs.js"></script>
+<script src="/static/js/board.js"></script>
+<script src="/static/js/designs.js"></script>
+<script src="/static/js/settings.js"></script>
+<script src="/static/js/practice.js"></script>
+</head>
+<body x-data x-cloak>
+<a class="skip" href="#view" @click.prevent="document.getElementById('view').focus()" x-text="t('nav.skip')"></a>
+<div class="shell">
+  <aside class="side">
+    <div class="brand" translate="no"><span class="mark"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-send"/></svg></span><span x-text="t('app')"></span></div>
+    <nav class="nav" :aria-label="t('nav.main')">
+      <template x-for="g in $store.app.groups()" :key="g.id">
+        <div class="group">
+          <div class="label" x-show="g.id !== 'end' && g.id !== 'setup'" x-text="t('nav.' + g.id)"></div>
+          <template x-for="k in g.tabs" :key="k">
+            <button :aria-current="$store.app.on(k) ? 'page' : null" @click="$store.app.show(k)">
+              <svg class="i" aria-hidden="true"><use :href="'/static/icons.svg#i-' + ICONS[k]"/></svg>
+              <span x-text="t('tabs.' + k)"></span>
+              <span class="count" :class="k === 'needs' && 'alert'" x-show="$store.app.n[k]" x-text="$store.app.n[k]?.toLocaleString()"></span>
+            </button>
+          </template>
+        </div>
+      </template>
+    </nav>
+    <span class="sr-only" role="status" aria-atomic="true" x-text="$store.app.n.needs ? t('needs.count_sr', {n: $store.app.n.needs}) : ''"></span>
+  </aside>
+
+  <header class="topbar">
+    <button class="btn ghost icon" :aria-label="t('nav.menu')" @click="$refs.menu.showModal()"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-menu"/></svg></button>
+    <div class="brand" translate="no"><span class="mark"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-send"/></svg></span><span x-text="t('app')"></span></div>
+  </header>
+  <dialog class="drawer left" id="menu" x-ref="menu" @click.self="$el.close()">
+    <div class="dialog-head">
+      <div class="brand" translate="no"><span class="mark"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-send"/></svg></span><span x-text="t('app')"></span></div>
+      <button class="btn ghost icon" :aria-label="t('nav.close')" @click="$refs.menu.close()"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+    </div>
+    <nav class="nav" :aria-label="t('nav.main')">
+      <template x-for="g in $store.app.groups()" :key="g.id">
+        <div class="group">
+          <div class="label" x-show="g.id !== 'end' && g.id !== 'setup'" x-text="t('nav.' + g.id)"></div>
+          <template x-for="k in g.tabs" :key="k">
+            <button :aria-current="$store.app.on(k) ? 'page' : null" @click="$store.app.show(k)">
+              <svg class="i" aria-hidden="true"><use :href="'/static/icons.svg#i-' + ICONS[k]"/></svg>
+              <span x-text="t('tabs.' + k)"></span>
+              <span class="count" :class="k === 'needs' && 'alert'" x-show="$store.app.n[k]" x-text="$store.app.n[k]?.toLocaleString()"></span>
+            </button>
+          </template>
+        </div>
+      </template>
+    </nav>
+  </dialog>
+
+  <main id="view" tabindex="-1"></main>
+</div>
+<div class="toast" :class="{ on: $store.toast.msg, bad: $store.toast.kind === 'bad' }" role="status" aria-live="polite">
+  <span x-text="$store.toast.msg"></span>
+  <button class="btn ghost sm" x-show="$store.toast.msg && !!$store.toast.undo" @click="$store.toast.undo(); $store.toast.msg = ''" x-text="t('undo')"></button>
+</div>
+</body>
+</html>

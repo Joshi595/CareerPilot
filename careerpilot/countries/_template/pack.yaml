@@ -1,0 +1,21 @@
+# Country pack template. Copy this folder to countries/<two-letter code>/ (e.g. countries/fr/) and fill it in.
+# Everything here is optional: a country without a pack gets the worldwide defaults and sources.
+name: Example country
+languages: [xx, en]          # languages job postings there are written in (ISO 639-1)
+conventions:                 # how CVs and letters look for jobs in this country
+  paper: a4                  # a4 | us-letter
+  photo: avoid               # avoid | optional | expected
+  dob: avoid                 # avoid | optional  (date of birth and nationality)
+  cv_pages: 2
+  letter: modern             # modern | formal (address block, place and date on the right)
+job_types:                   # local words for job types, lower case, matched in titles
+  student: []
+  internship: []
+  apprenticeship: []
+  thesis: []
+search_words:                # searched in front of a person's titles for each job type they chose, e.g. student: [Werkstudent]
+  student: []
+  internship: []
+  apprenticeship: []
+  thesis: []
+language_required: {}       # Language: 'regex' for postings that demand a language level, e.g. German: '...'

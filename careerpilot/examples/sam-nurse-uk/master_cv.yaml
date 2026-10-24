@@ -1,0 +1,69 @@
+# Example person (fictional): a registered nurse applying in the UK.
+basics:
+  name: Sam Sample
+  headline: Registered Nurse (Adult)
+  email: sam.sample@example.com
+  phone: "+44 7700 900000"
+  location: Leeds, United Kingdom
+  address: ""
+  dob: ""
+  nationality: ""
+  links: {}
+  photo: ""
+summaries:
+  main: >-
+    Registered adult nurse with five years on acute medical wards. Experienced in patient assessment,
+    medication rounds and mentoring student nurses.
+experience:
+  - id: exp1
+    title: Staff Nurse, Acute Medical Unit
+    org: Example Teaching Hospitals NHS Trust
+    location: Leeds, United Kingdom
+    start: 2021-06
+    end: present
+    bullets:
+      - id: exp1_b1
+        text: Care for up to **8 patients per shift** on a 28-bed acute medical unit.
+        tags: [patient-care, acute-care, assessment]
+      - id: exp1_b2
+        text: Mentor **4 student nurses per year** as a practice assessor.
+        tags: [mentoring, teaching, practice-assessor]
+      - id: exp1_b3
+        text: Led the ward's switch to electronic observation charts (NEWS2) for the night shift team.
+        tags: [news2, digital-records, change]
+  - id: exp2
+    title: Staff Nurse, Care of the Elderly
+    org: Sample Community Hospital
+    location: Bradford, United Kingdom
+    start: 2019-09
+    end: 2021-05
+    bullets:
+      - id: exp2_b1
+        text: Delivered personal care, wound care and medication rounds for 20 older patients.
+        tags: [elderly-care, wound-care, medication]
+education:
+  - id: edu1
+    degree: BSc (Hons) Adult Nursing
+    school: University of Example
+    location: Leeds, United Kingdom
+    start: 2016
+    end: 2019
+    details: "First-class honours"
+skills:
+  Clinical: [Patient assessment, NEWS2, IV therapy, Wound care, Medication administration]
+  Other: [Mentoring, Electronic patient records]
+languages:
+  - {name: English, level: Native}
+certifications:
+  - {id: cert1, name: NMC Registration (Adult Nurse), issuer: Nursing and Midwifery Council, date: 2019-09}
+  - {id: cert2, name: Immediate Life Support, issuer: Resuscitation Council UK, date: 2024-02}
+volunteering:
+  - id: vol1
+    title: First aid volunteer
+    org: Example Red Cross
+    start: 2018
+    end: present
+    bullets:
+      - id: vol1_b1
+        text: Provide first aid at local sports events, about 10 events per year.
+        tags: [first-aid, volunteering]

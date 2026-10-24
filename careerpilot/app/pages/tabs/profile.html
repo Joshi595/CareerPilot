@@ -1,0 +1,343 @@
+<div>
+  <div class="page-head">
+    <div>
+      <h1 x-text="t('tabs.profile')"></h1>
+      <p x-text="$store.app.draft ? t('profile.review_banner') : t('profile.intro')"></p>
+    </div>
+  </div>
+  <nav x-show="!$store.app.draft" :aria-label="t('profile.views')">
+    <button :aria-pressed="!['details', 'writing', 'letter'].includes($store.app.sub)" @click="$store.app.show('profile')" x-text="t('profile.tab_cv')"></button>
+    <button :aria-pressed="$store.app.sub === 'details'" @click="$store.app.show('profile', 'details')" x-text="t('profile.tab_details')"></button>
+    <button :aria-pressed="['writing', 'letter'].includes($store.app.sub)" @click="$store.app.show('profile', 'writing')" x-text="t('profile.tab_writing')"></button>
+  </nav>
+
+  <div x-show="!$store.app.draft && !['writing', 'letter'].includes($store.app.sub)" x-include="ask.html"></div>
+
+  <template x-if="$store.app.sub === 'details' && !$store.app.draft">
+    <div class="details-part" x-include="details.html"></div>
+  </template>
+
+  <!-- Writing: how CVs and letters are written. CV instructions, letter instructions, the person's own letter, lessons -->
+  <template x-if="['writing', 'letter'].includes($store.app.sub) && !$store.app.draft">
+    <div x-data="writingEditor" x-effect="$store.app.dirty = changed()" class="stack">
+      <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+      <p class="muted" x-text="t('profile.writing_intro')"></p>
+      <section class="panel stack" aria-labelledby="h-cvrules">
+        <h2 id="h-cvrules" x-text="t('profile.cv_rules_title')"></h2>
+        <p class="muted small" x-text="t('profile.cv_rules_hint')"></p>
+        <textarea class="grow-box" x-model="cvRules" :aria-label="t('profile.cv_rules_title')" :placeholder="t('profile.cv_rules_empty')"></textarea>
+        <div class="chips" role="group" :aria-label="t('profile.examples')">
+          <template x-for="c in t('profile.cv_rules_chips')" :key="c">
+            <button type="button" class="chip" @click="addRule('cvRules', c)" x-text="'+ ' + c"></button></template>
+        </div>
+      </section>
+      <section class="panel stack" aria-labelledby="h-style">
+        <h2 id="h-style" x-text="t('profile.style_title')"></h2>
+        <p class="muted small" x-text="t('profile.style_hint')"></p>
+        <textarea class="grow-box" x-model="style" :aria-label="t('profile.style_title')"></textarea>
+        <div class="chips" role="group" :aria-label="t('profile.examples')">
+          <template x-for="c in t('profile.style_chips')" :key="c">
+            <button type="button" class="chip" @click="addRule('style', c)" x-text="'+ ' + c"></button></template>
+        </div>
+      </section>
+      <div class="stack" data-writing="cvRules,style">
+        <p class="muted small" x-text="t('ask.writing_intro')"></p>
+        <div x-include="ask.html"></div>
+      </div>
+      <section class="panel stack" aria-labelledby="h-letter">
+        <div class="group-head">
+          <h2 id="h-letter" x-text="t('profile.letter_title')"></h2>
+          <label class="btn sm"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-upload"/></svg><span x-text="t('profile.letter_upload')"></span>
+            <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md" @change="upload($event)" :disabled="busy"></label>
+        </div>
+        <p class="muted small" x-show="!paras.length" x-text="t('profile.letter_empty')"></p>
+        <template x-for="(q, i) in paras" :key="q.id">
+          <div class="bullet">
+            <textarea class="grow-box" x-model="q.text" :aria-label="t('profile.paragraph_n', {n: i + 1})"></textarea>
+            <button class="btn ghost icon sm" :disabled="i === 0" :aria-label="t('up')" :title="t('up')" @click="move(i, -1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button>
+            <button class="btn ghost icon sm" :disabled="i === paras.length - 1" :aria-label="t('down')" :title="t('down')" @click="move(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button>
+            <button class="btn ghost icon sm" :aria-label="t('remove')" :title="t('remove')" @click="paras.splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+          </div>
+        </template>
+        <div class="actions"><button class="btn sm" @click="add()" x-text="t('profile.add_paragraph')"></button></div>
+      </section>
+      <section class="panel stack" aria-labelledby="h-lessons">
+        <h2 id="h-lessons" x-text="t('profile.lessons_title')"></h2>
+        <p class="muted small" x-text="t('profile.lessons_hint')"></p>
+        <textarea class="grow-box" x-model="lessons" :aria-label="t('profile.lessons_title')" :placeholder="t('settings.lessons_hint')"></textarea>
+      </section>
+      <div class="sticky savebar" x-show="changed()" role="region" :aria-label="t('profile.savebar')">
+        <span class="lbl" x-text="t('profile.unsaved')"></span>
+        <button class="btn ghost" :disabled="busy" @click="discard()" x-text="t('profile.discard')"></button>
+        <button class="btn primary" :disabled="busy" @click="save()" x-text="t('save')"></button>
+      </div>
+    </div>
+  </template>
+
+  <template x-if="($store.app.sub !== 'details' && !['letter', 'writing'].includes($store.app.sub)) || $store.app.draft">
+  <div x-data="profileEditor" x-effect="$store.app.dirty = changed()">
+    <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+    <div class="cv-layout" x-show="!p && !err" aria-busy="true" :aria-label="t('profile.loading')">
+      <span></span>
+      <div><template x-for="n in 4" :key="n"><div class="panel"><span class="skeleton sk-line sk-block"></span></div></template></div>
+    </div>
+
+    <template x-if="p">
+    <div class="cv-layout">
+      <nav class="cv-nav" :aria-label="t('profile.sections_nav')">
+        <template x-for="k in CV_NAV" :key="k">
+          <button type="button" @click="jump(k)">
+            <span x-text="t('profile.sections.' + k)"></span><span class="count num" x-show="count(k)" x-text="count(k)"></span>
+          </button>
+        </template>
+      </nav>
+
+      <div class="cv-main">
+        <!-- Header: who, and the AI-backed ways to update the CV; their result opens in a modal -->
+        <div class="panel cv-head" x-data="profileUpdate">
+          <span class="avatar" aria-hidden="true"><img x-show="photoUrl()" :src="photoUrl()" alt="" width="64" height="64"><span x-show="!photoUrl()" x-text="initials()"></span></span>
+          <div class="cv-who">
+            <h2 x-text="p.basics.name || t('profile.no_name')"></h2>
+            <p class="muted" x-show="p.basics.headline" x-text="p.basics.headline"></p>
+            <p class="small muted" x-show="!review" x-text="t('profile.master_note')"></p>
+            <p class="small" x-show="!review && asked.length"><span x-text="t('profile.asked')"></span>
+              <span class="muted" x-text="asked.map(([k, n]) => `${k} (${n})`).join(', ')"></span></p>
+          </div>
+          <div class="actions" x-show="!review">
+            <label class="btn"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-upload"/></svg><span x-text="t('update.newer_cv')"></span>
+              <input type="file" class="sr-only" accept=".pdf,.docx,.doc,.txt" @change="newerCv($event)"></label>
+            <button class="btn" @click="whatsNew()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('update.whats_new')"></span></button>
+            <button class="btn" @click="improve()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-sparkles"/></svg><span x-text="t('update.improve')"></span></button>
+          </div>
+
+          <dialog class="modal" x-ref="upd" :aria-label="t('update.title')" @cancel="busy && $event.preventDefault()" @close="reset()">
+            <div class="dialog-head">
+              <h2 x-text="t('update.title')"></h2>
+              <button class="btn ghost icon" :disabled="!!busy" :aria-label="t('close')" @click="reset()"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+            </div>
+            <div class="stack">
+              <div class="msg info" x-show="busy" role="status" x-text="busy"></div>
+              <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+              <template x-if="mode === 'news' && !busy">
+                <form class="stack" @submit.prevent="addNews()">
+                  <label class="field"><span x-text="t('update.whats_new')"></span>
+                    <textarea x-model="news" rows="5" :placeholder="t('update.news_hint')"></textarea></label>
+                  <div class="actions"><button class="btn primary" :disabled="!news.trim()" x-text="t('update.add')"></button>
+                    <button type="button" class="btn" @click="reset()" x-text="t('cancel')"></button></div>
+                </form>
+              </template>
+              <template x-if="mode === 'questions' && !busy">
+                <form class="stack" @submit.prevent="addAnswers()">
+                  <template x-for="q in questions" :key="q.id">
+                    <label class="field"><span x-text="q.question"></span><textarea x-model="replies[q.id]" rows="2"></textarea></label>
+                  </template>
+                  <div class="actions"><button class="btn primary" x-text="t('update.add')"></button>
+                    <button type="button" class="btn" @click="reset()" x-text="t('cancel')"></button></div>
+                </form>
+              </template>
+              <template x-if="mode === 'changes' && !busy">
+                <div class="stack">
+                  <p class="muted" x-text="t('update.changes_intro')"></p>
+                  <ul class="changes"><template x-for="c in changes" :key="c"><li x-text="c"></li></template></ul>
+                  <div class="actions"><button class="btn primary" @click="keep()" x-text="t('update.keep')"></button>
+                    <button class="btn" @click="reset()" x-text="t('update.discard')"></button></div>
+                </div>
+              </template>
+            </div>
+          </dialog>
+        </div>
+
+        <template x-for="k in CV_NAV" :key="k">
+          <section class="panel cv-sec" :id="'cv-' + k" tabindex="-1" :aria-labelledby="'h-' + k">
+            <h2 :id="'h-' + k" x-text="t('profile.sections.' + k)"></h2>
+
+            <template x-if="k === 'contact'">
+              <div class="stack">
+                <div class="grid">
+                  <template x-for="f in ['name','headline','email','phone','location','address','dob','nationality']" :key="f">
+                    <label class="field"><span x-text="t('profile.' + f)"></span><input x-model="p.basics[f]" :type="{ email: 'email', phone: 'tel' }[f] || 'text'" :spellcheck="f === 'email' ? 'false' : 'true'"
+                      :autocomplete="{ name: 'name', email: 'email', phone: 'tel', address: 'street-address', dob: 'bday' }[f] || 'off'"></label>
+                  </template>
+                </div>
+                <div class="field">
+                  <span class="lbl" x-text="t('profile.photo_title')"></span>
+                  <label class="btn sm"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-upload"/></svg>
+                    <span x-text="p.basics.photo ? t('profile.change_photo') : t('profile.add_photo')"></span>
+                    <input type="file" class="sr-only" accept=".png,.jpg,.jpeg" @change="photo($event)"></label>
+                  <span class="hint" x-text="t('profile.photo')"></span>
+                </div>
+                <div class="field">
+                  <span class="lbl" x-text="t('profile.links')"></span>
+                  <template x-for="(l, i) in links" :key="i">
+                    <div class="bullet"><input class="key" x-model="l.k" :placeholder="t('profile.link_name')" :aria-label="t('profile.link_name')">
+                      <input type="url" x-model="l.v" placeholder="https://…" spellcheck="false" :aria-label="t('profile.link_url')">
+                      <button class="btn ghost icon" :aria-label="t('remove')" :title="t('remove')" @click="links.splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button></div>
+                  </template>
+                  <div class="actions"><button class="btn sm" @click="links.push({k: '', v: ''})" x-text="t('profile.add_link')"></button></div>
+                </div>
+              </div>
+            </template>
+
+            <template x-if="k === 'summaries'">
+              <div class="stack">
+                <template x-for="(s, i) in summaries" :key="i">
+                  <div class="field">
+                    <div class="bullet"><input class="key" x-model="s.k" :placeholder="t('profile.summary_key')" :aria-label="t('profile.summary_key')">
+                      <button class="btn ghost icon" :aria-label="t('remove')" :title="t('remove')" @click="summaries.splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button></div>
+                    <textarea x-model="s.v" rows="4" :aria-label="s.k || t('profile.sections.summaries')"></textarea>
+                  </div>
+                </template>
+                <div class="actions"><button class="btn sm" @click="summaries.push({k: summaries.length ? '' : 'main', v: ''})" x-text="t('profile.add_summary')"></button></div>
+              </div>
+            </template>
+
+            <!-- Jobs, projects, courses, volunteering and the person's own sections: rows that expand to edit -->
+            <template x-if="ENTRY_SECTIONS.includes(k) || k === 'custom'">
+              <div class="stack">
+                <template x-for="(g, gi) in (k === 'custom' ? p.custom.map(c => ({ list: c.entries, sec: c })) : [{ list: p[k] }])" :key="gi">
+                  <div class="stack">
+                    <template x-if="g.sec">
+                      <div class="bullet">
+                        <input x-model="g.sec.title" :placeholder="t('profile.custom_title')" :aria-label="t('profile.custom_title')">
+                        <button class="btn ghost sm" @click="p.custom.splice(gi, 1)" x-text="t('profile.remove_section')"></button>
+                      </div>
+                    </template>
+                    <p class="muted small" x-show="!g.list.length" x-text="t('profile.empty_section')"></p>
+                    <ul class="entries" x-show="g.list.length">
+                      <template x-for="(e, i) in g.list" :key="e.id">
+                        <li class="entry">
+                          <div class="entry-head">
+                            <button class="entry-toggle" :aria-expanded="!!open[e.id]" :aria-controls="'e-' + e.id" @click="toggle(e.id)">
+                              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-right"/></svg>
+                              <span class="entry-sum"><b x-text="e.title || t('profile.untitled')"></b><span x-text="line(e, 'org', 'dates')"></span></span>
+                            </button>
+                            <span class="entry-acts">
+                              <button class="btn ghost icon sm" :disabled="i === 0" :aria-label="t('up')" :title="t('up')" @click="move(g.list, i, -1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button>
+                              <button class="btn ghost icon sm" :disabled="i === g.list.length - 1" :aria-label="t('down')" :title="t('down')" @click="move(g.list, i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button>
+                              <button class="btn ghost icon sm" :aria-label="t('remove')" :title="t('remove')" @click="g.list.splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+                            </span>
+                          </div>
+                          <div class="entry-body" :id="'e-' + e.id" x-show="open[e.id]">
+                            <div class="grid">
+                              <label class="field"><span x-text="t('profile.entry_title')"></span><input x-model="e.title"></label>
+                              <label class="field"><span x-text="t('profile.entry_org')"></span><input x-model="e.org"></label>
+                              <label class="field"><span x-text="t('profile.entry_location')"></span><input x-model="e.location"></label>
+                              <label class="field"><span x-text="t('profile.entry_start')"></span><input x-model="e.start"></label>
+                              <label class="field"><span x-text="t('profile.entry_end')"></span><input x-model="e.end"></label>
+                              <label class="field"><span x-text="t('profile.entry_link')"></span><input type="url" x-model="e.link"></label>
+                            </div>
+                            <div class="field">
+                              <span class="lbl" x-text="t('profile.bullets')"></span>
+                              <template x-for="(b, j) in e.bullets" :key="b.id">
+                                <div class="bullet">
+                                  <textarea x-model="b.text" rows="2" :placeholder="t('profile.bullet')" :aria-label="t('profile.bullet_n', {n: j + 1})"></textarea>
+                                  <button class="btn ghost icon sm" :disabled="j === 0" :aria-label="t('up')" :title="t('up')" @click="move(e.bullets, j, -1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button>
+                                  <button class="btn ghost icon sm" :disabled="j === e.bullets.length - 1" :aria-label="t('down')" :title="t('down')" @click="move(e.bullets, j, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button>
+                                  <button class="btn ghost icon sm" :aria-label="t('remove')" :title="t('remove')" @click="e.bullets.splice(j, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+                                </div>
+                              </template>
+                              <div class="actions"><button class="btn sm" @click="addBullet(e)" x-text="t('profile.add_bullet')"></button></div>
+                            </div>
+                          </div>
+                        </li>
+                      </template>
+                    </ul>
+                    <div><button class="btn sm" @click="addEntry(g.list, g.sec ? 'cus' : k.slice(0, 4))">
+                      <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('profile.add_entry')"></span></button></div>
+                  </div>
+                </template>
+                <div x-show="k === 'custom'"><button class="btn sm" @click="addCustom()">
+                  <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('profile.add_custom')"></span></button></div>
+              </div>
+            </template>
+
+            <template x-if="k === 'education'">
+              <div class="stack">
+                <p class="muted small" x-show="!p.education.length" x-text="t('profile.empty_section')"></p>
+                <ul class="entries" x-show="p.education.length">
+                  <template x-for="(e, i) in p.education" :key="e.id">
+                    <li class="entry">
+                      <div class="entry-head">
+                        <button class="entry-toggle" :aria-expanded="!!open[e.id]" :aria-controls="'e-' + e.id" @click="toggle(e.id)">
+                          <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-right"/></svg>
+                          <span class="entry-sum"><b x-text="e.degree || t('profile.untitled')"></b><span x-text="line(e, 'school', 'dates')"></span></span>
+                        </button>
+                        <span class="entry-acts">
+                          <button class="btn ghost icon sm" :disabled="i === 0" :aria-label="t('up')" :title="t('up')" @click="move(p.education, i, -1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button>
+                          <button class="btn ghost icon sm" :disabled="i === p.education.length - 1" :aria-label="t('down')" :title="t('down')" @click="move(p.education, i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button>
+                          <button class="btn ghost icon sm" :aria-label="t('remove')" :title="t('remove')" @click="p.education.splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+                        </span>
+                      </div>
+                      <div class="entry-body" :id="'e-' + e.id" x-show="open[e.id]">
+                        <div class="grid">
+                          <label class="field"><span x-text="t('profile.degree')"></span><input x-model="e.degree"></label>
+                          <label class="field"><span x-text="t('profile.school')"></span><input x-model="e.school"></label>
+                          <label class="field"><span x-text="t('profile.entry_location')"></span><input x-model="e.location"></label>
+                          <label class="field"><span x-text="t('profile.entry_start')"></span><input x-model="e.start"></label>
+                          <label class="field"><span x-text="t('profile.entry_end')"></span><input x-model="e.end"></label>
+                        </div>
+                        <label class="field"><span x-text="t('profile.details')"></span><textarea x-model="e.details" rows="2"></textarea></label>
+                        <label class="field"><span x-text="t('profile.only_for')"></span>
+                          <input :value="(e.only_for || []).join(', ')" @input="e.only_for = csv($event.target.value)" :placeholder="t('profile.only_for_hint')"></label>
+                      </div>
+                    </li>
+                  </template>
+                </ul>
+                <div><button class="btn sm" @click="addEducation()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('profile.add_entry')"></span></button></div>
+              </div>
+            </template>
+
+            <template x-if="k === 'skills'">
+              <div class="stack">
+                <template x-for="(s, i) in skills" :key="i">
+                  <div class="bullet"><input class="key" x-model="s.cat" :placeholder="t('profile.skill_cat')" :aria-label="t('profile.skill_cat')">
+                    <input x-model="s.items" :placeholder="t('profile.skill_items')" :aria-label="t('profile.skill_items')">
+                    <button class="btn ghost icon" :aria-label="t('remove')" :title="t('remove')" @click="skills.splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button></div>
+                </template>
+                <div><button class="btn sm" @click="skills.push({cat: '', items: ''})" x-text="t('profile.add_skills')"></button></div>
+              </div>
+            </template>
+
+            <template x-if="k === 'languages'">
+              <div class="stack">
+                <template x-for="(l, i) in p.languages" :key="i">
+                  <div class="bullet"><input x-model="l.name" :placeholder="t('profile.lang_name')" :aria-label="t('profile.lang_name')">
+                    <input x-model="l.level" :placeholder="t('profile.lang_level')" :aria-label="t('profile.lang_level')">
+                    <button class="btn ghost icon" :aria-label="t('remove')" :title="t('remove')" @click="p.languages.splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button></div>
+                </template>
+                <div><button class="btn sm" @click="p.languages.push({name: '', level: ''})" x-text="t('profile.add_language')"></button></div>
+              </div>
+            </template>
+
+            <template x-if="ITEM_SECTIONS.includes(k)">
+              <div class="stack">
+                <p class="muted small" x-show="!p[k].length" x-text="t('profile.empty_section')"></p>
+                <template x-for="(it, i) in p[k]" :key="it.id">
+                  <div class="bullet item-row">
+                    <input x-model="it.name" :placeholder="t('profile.item_name')" :aria-label="t('profile.item_name')">
+                    <input x-model="it.issuer" :placeholder="t('profile.item_issuer')" :aria-label="t('profile.item_issuer')">
+                    <input class="date" x-model="it.date" :placeholder="t('profile.item_date')" :aria-label="t('profile.item_date')">
+                    <button class="btn ghost icon" :aria-label="t('remove')" :title="t('remove')" @click="p[k].splice(i, 1)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+                  </div>
+                </template>
+                <div><button class="btn sm" @click="addItem(p[k], k.slice(0, 4))" x-text="t('add')"></button></div>
+              </div>
+            </template>
+
+            <template x-if="k === 'interests'">
+              <label class="field"><span x-text="t('profile.interests')"></span><input x-model="interests"></label>
+            </template>
+          </section>
+        </template>
+
+        <div class="sticky savebar" x-show="review || changed()" role="region" :aria-label="t('profile.savebar')">
+          <span class="lbl" x-show="!review" x-text="t('profile.unsaved')"></span>
+          <button class="btn ghost" x-show="!review" :disabled="busy" @click="discard()" x-text="t('profile.discard')"></button>
+          <button class="btn primary" :disabled="busy" @click="save()" x-text="review ? t('profile.confirm') : t('save')"></button>
+        </div>
+      </div>
+    </div>
+    </template>
+  </div>
+  </template>
+</div>

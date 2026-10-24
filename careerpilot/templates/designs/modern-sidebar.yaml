@@ -1,0 +1,5 @@
+name: Modern sidebar
+family: Modern
+description: Contact details, skills and languages in a tinted side column. Looks modern; some tracking systems read two columns less well.
+style: {layout: sidebar, side: left, font: Lato, heading_font: Lato, accent: "#2F5BD3", side_fill: "#EEF2FB", section_style: caps, skills_style: stacked, languages_style: dots, group: false}
+sidebar: [skills, languages, certifications, interests]

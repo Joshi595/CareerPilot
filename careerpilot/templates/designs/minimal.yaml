@@ -1,0 +1,4 @@
+name: Minimal
+family: Simple
+description: Lots of white space, sans-serif, dates on the left. Calm and easy to scan.
+style: {font: Lato, heading_font: Lato, accent: "#111111", muted: "#777777", section_style: plain, margin_x: 2.0, leading: 0.68, date_pos: left, group: false}

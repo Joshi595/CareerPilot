@@ -1,0 +1,45 @@
+<div x-data="emailPart" class="part">
+  <p class="muted" x-text="t('email.intro')"></p>
+  <div class="msg bad" x-show="err && !e" role="alert" x-text="err"></div>
+  <span class="skeleton sk-line sk-block" x-show="!e && !err" aria-busy="true"></span>
+
+  <template x-if="e">
+    <div class="stack">
+      <label class="field" for="em-address"><span x-text="t('email.address')"></span>
+        <input id="em-address" type="email" autocomplete="email" x-model.trim="e.address" @change="detect()">
+        <span class="hint" x-show="e.address.includes('@')">
+          <span x-text="e.provider === 'custom' ? t('email.custom') : t('email.detected', {provider: name(e.provider)})"></span>
+          <a x-show="e.help[e.provider]" :href="e.help[e.provider]" target="_blank" rel="noopener">
+            <span x-text="t('email.help')"></span><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-external-link"/></svg></a>
+        </span>
+      </label>
+
+      <div class="grid">
+        <label class="field" for="em-provider"><span x-text="t('email.provider')"></span>
+          <select id="em-provider" x-model="e.provider" @change="save()">
+            <template x-for="pr in [...e.providers, 'custom']" :key="pr"><option :value="pr" :selected="pr === e.provider" x-text="name(pr)"></option></template>
+          </select></label>
+        <label class="field" for="em-pw"><span x-text="e.password_saved ? t('email.password_saved') : t('email.password')"></span>
+          <input id="em-pw" type="password" x-model="password" autocomplete="new-password" @keydown.enter="connect()"></label>
+      </div>
+      <p class="hint small muted" x-text="t('email.password_d')"></p>
+
+      <div class="grid" x-show="e.provider === 'custom'">
+        <label class="field" for="em-imap"><span x-text="t('email.imap')"></span><input id="em-imap" x-model.trim="e.imap" @change="save()"></label>
+        <label class="field" for="em-smtp"><span x-text="t('email.smtp')"></span><input id="em-smtp" x-model.trim="e.smtp" @change="save()"></label>
+        <label class="field" for="em-port"><span x-text="t('email.port')"></span>
+          <input id="em-port" type="number" inputmode="numeric" x-model.number="e.port" @change="save()"></label>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" :disabled="busy || !e.address.includes('@') || (!password && !e.password_saved)" @click="connect()">
+          <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-send"/></svg>
+          <span x-text="busy ? t('email.connecting') : t('email.connect')"></span></button>
+      </div>
+      <div class="msg ok" x-show="result" role="status" x-text="result"></div>
+      <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+      <label class="check"><input type="checkbox" class="switch" x-model="aiMail" @change="patchPrefs({ai_mail: aiMail})">
+        <span><span x-text="t('email.ai_t')"></span><span class="set-d" x-text="t('email.ai_d')"></span></span></label>
+    </div>
+  </template>
+</div>

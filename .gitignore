@@ -1,0 +1,14 @@
+# Personal data never lives in this folder (it goes to the app-data folder), but just in case:
+*.pdf
+*passport*
+*diploma*
+*.db
+my/
+Current application/*
+!Current application/README.md
+*.yml.snapshot
+
+.venv/
+__pycache__/
+.pytest_cache/
+dist/

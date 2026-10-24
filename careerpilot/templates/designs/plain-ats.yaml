@@ -1,0 +1,4 @@
+name: Plain ATS
+family: Simple
+description: No colour, no columns, no photo. The safest choice for applicant-tracking software.
+style: {font: Fira Sans, heading_font: Fira Sans, accent: "#000000", muted: "#000000", section_style: plain, photo: none, bullet: "-", group: false}

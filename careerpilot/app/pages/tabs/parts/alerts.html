@@ -1,0 +1,101 @@
+<div x-data="alertsPart" class="part">
+  <p class="muted" x-text="t('alerts.intro')"></p>
+  <div class="msg bad" x-show="err && !loaded" role="alert" x-text="err"></div>
+  <span class="skeleton sk-line sk-block" x-show="!loaded && !err" aria-busy="true"></span>
+
+  <template x-if="loaded">
+    <div class="stack">
+      <h3 class="sub" x-text="t('alerts.add')"></h3>
+      <div class="cards">
+        <template x-for="c in CARDS" :key="c">
+          <button type="button" class="opt-card" :aria-expanded="open === c" :aria-controls="'al-' + c" @click="open = open === c ? '' : c; err = ''">
+            <b x-text="t('alerts.cards.' + c + '.t')"></b><small x-text="t('alerts.cards.' + c + '.d')"></small>
+          </button>
+        </template>
+      </div>
+
+      <div class="panel inset" id="al-phone" x-show="open === 'phone'">
+        <ol class="howto">
+          <li><span x-text="t('alerts.phone_1')"></span>
+            <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener" x-text="t('alerts.android')"></a> ·
+            <a href="https://apps.apple.com/us/app/ntfy/id1625396347" target="_blank" rel="noopener" x-text="t('alerts.iphone')"></a></li>
+          <li><span x-text="t('alerts.phone_2')"></span>
+            <div class="inline">
+              <input class="mono" x-model.trim="topic" :aria-label="t('alerts.topic')" spellcheck="false">
+              <button type="button" class="btn" @click="copy(topic)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-copy"/></svg><span x-text="t('alerts.copy')"></span></button>
+              <button type="button" class="btn ghost" @click="topic = newTopic()"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-refresh-cw"/></svg><span x-text="t('alerts.new_topic')"></span></button>
+            </div></li>
+          <li><span x-text="t('alerts.phone_3')"></span>
+            <div><button type="button" class="btn primary" :disabled="busy || !topic" @click="add('ntfy://' + topic)" x-text="t('alerts.connect')"></button></div></li>
+        </ol>
+      </div>
+
+      <div class="panel inset" id="al-telegram" x-show="open === 'telegram'">
+        <ol class="howto">
+          <li><span x-text="t('alerts.tg_1')"></span> <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> <span x-text="t('alerts.tg_1b')"></span></li>
+          <li x-text="t('alerts.tg_2')"></li>
+          <li><span x-text="t('alerts.tg_3')"></span>
+            <form class="inline" @submit.prevent="telegram()">
+              <input type="password" class="mono" x-model.trim="token" :aria-label="t('alerts.token')" placeholder="123456789:AA…" autocomplete="off">
+              <button class="btn primary" :disabled="busy || !token" x-text="busy ? t('working') : t('alerts.connect')"></button>
+            </form></li>
+        </ol>
+      </div>
+
+      <div class="panel inset" id="al-email" x-show="open === 'email'">
+        <p class="muted" x-show="!email" x-text="t('alerts.email_need')"></p>
+        <label class="check" x-show="email"><input type="checkbox" class="switch" x-model="alertEmail" @change="patchPrefs({alert_email: alertEmail})">
+          <span><span x-text="t('alerts.email_t')"></span><span class="set-d" x-text="t('alerts.email_d', {address: email})"></span></span></label>
+        <div class="actions" x-show="email && alertEmail">
+          <button type="button" class="btn" :disabled="busy" @click="test('email')" x-text="t('alerts.test')"></button></div>
+      </div>
+
+      <div class="panel inset" id="al-hook" x-show="open === 'hook'">
+        <p class="small muted" x-text="t('alerts.hook_d')"></p>
+        <form class="inline" @submit.prevent="add(hook)">
+          <input type="url" class="mono" x-model.trim="hook" :aria-label="t('alerts.hook')" placeholder="https://…" autocomplete="off" spellcheck="false">
+          <button class="btn primary" :disabled="busy || !hook" x-text="t('alerts.connect')"></button>
+        </form>
+      </div>
+
+      <div class="panel inset" id="al-other" x-show="open === 'other'">
+        <p class="small muted"><span x-text="t('alerts.other_d')"></span>
+          <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">github.com/caronc/apprise/wiki</a></p>
+        <form class="inline" @submit.prevent="add(other)">
+          <input class="mono" x-model.trim="other" :aria-label="t('alerts.other')" placeholder="signal://…" autocomplete="off">
+          <button class="btn primary" :disabled="busy || !other" x-text="t('alerts.connect')"></button>
+        </form>
+      </div>
+      <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+
+      <h3 class="sub" x-text="t('alerts.connected')"></h3>
+      <p class="muted small" x-show="!channels.length && !alertEmail" x-text="t('alerts.none')"></p>
+      <ul class="list" x-show="channels.length || alertEmail">
+        <template x-for="c in channels" :key="c.i + c.label">
+          <li class="item">
+            <div class="grow"><b x-text="c.kind"></b><div class="small muted mono" x-text="c.label"></div></div>
+            <button type="button" class="btn sm" :disabled="busy" @click="test(c.i)" :aria-label="t('alerts.test_q', {c: c.kind})" x-text="t('alerts.test')"></button>
+            <button type="button" class="btn ghost icon sm" :disabled="busy" @click="remove(c.i)" :aria-label="t('alerts.remove_q', {c: c.kind})" :title="t('alerts.remove')">
+              <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+          </li>
+        </template>
+        <li class="item" x-show="alertEmail && email">
+          <div class="grow"><b x-text="t('alerts.cards.email.t')"></b><div class="small muted" x-text="email"></div></div>
+          <button type="button" class="btn sm" :disabled="busy" @click="test('email')" x-text="t('alerts.test')"></button>
+          <button type="button" class="btn ghost icon sm" @click="alertEmail = false; patchPrefs({alert_email: false})" :aria-label="t('alerts.remove_q', {c: t('alerts.cards.email.t')})">
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+        </li>
+      </ul>
+
+      <h3 class="sub" x-text="t('alerts.events')"></h3>
+      <p class="small" x-text="t('alerts.always', {list: always.map(ev => t('alerts.events_list.' + ev).toLowerCase()).join(', ')})"></p>
+      <div class="chips" role="group" :aria-label="t('alerts.events')">
+        <template x-for="ev in events.filter(ev => !always.includes(ev))" :key="ev">
+          <label class="chip"><input type="checkbox" :value="ev" x-model="on" @change="patchPrefs({alert_events: on})"><span x-text="t('alerts.events_list.' + ev)"></span></label>
+        </template>
+      </div>
+      <label class="check"><input type="checkbox" class="switch" x-model="desktop" @change="patchPrefs({desktop_alerts: desktop})">
+        <span><span x-text="t('alerts.desktop_t')"></span><span class="set-d" x-text="t('alerts.desktop_d')"></span></span></label>
+    </div>
+  </template>
+</div>

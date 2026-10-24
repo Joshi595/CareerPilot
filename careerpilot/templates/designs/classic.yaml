@@ -1,0 +1,4 @@
+name: Classic
+family: Traditional
+description: One column, serif, a thin rule under each heading. Fits most jobs, especially in Germany and Europe.
+style: {font: Libertinus Serif, heading_font: Libertinus Serif, accent: "#1F3A5F", section_style: rule, header: left, group: true}

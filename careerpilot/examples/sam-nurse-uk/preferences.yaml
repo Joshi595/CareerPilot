@@ -1,0 +1,16 @@
+home_country: GB
+targets:
+  - {code: GB, permit: British citizen, needs_sponsorship: false}
+app_language: en
+agent: claude
+titles: [Staff Nurse, Registered Nurse, Band 6 Nurse, Practice Educator]
+keywords:
+  en: [Staff Nurse, Registered Nurse, Band 5 Nurse, Band 6 Nurse, Acute Medicine, NMC]
+job_types: [full_time, part_time]
+places: [Leeds]
+radius_km: 30
+remote: onsite
+salary: "Band 6"
+start: 1 month notice
+notice: 4 weeks
+setup_done: true

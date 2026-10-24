@@ -1,0 +1,4 @@
+name: Bold header
+family: Modern
+description: A coloured header band with your name and contacts, plain sections below.
+style: {font: Fira Sans, heading_font: Fira Sans, accent: "#B91C1C", section_style: plain, header: band, group: false}

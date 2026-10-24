@@ -1,0 +1,162 @@
+<div x-data="designs">
+  <!-- Gallery: every card opens the customiser -->
+  <div x-show="mode === 'gallery'">
+    <div class="page-head">
+      <div>
+        <h1 x-text="t('tabs.designs')"></h1>
+        <p x-text="t('designs.intro')"></p>
+      </div>
+    </div>
+
+    <div class="msg bad" x-show="loadErr" role="alert">
+      <span x-text="t('designs.load_failed') + ' ' + loadErr"></span> <button class="btn sm" @click="load()" x-text="t('board.retry')"></button>
+    </div>
+
+    <ul class="design-grid" x-show="loading" aria-busy="true" :aria-label="t('designs.loading')">
+      <template x-for="n in 8" :key="n"><li><span class="design-card"><span class="thumb skeleton"></span><span class="skeleton sk-text"></span></span></li></template>
+    </ul>
+
+    <template x-if="mine()">
+      <section class="design-hero" aria-labelledby="dg-yours">
+        <h2 id="dg-yours" x-text="t('designs.yours')"></h2>
+        <a class="design-card on" :href="link(mine().id)" @click.prevent="go(mine().id)">
+          <span class="thumb skeleton"><img :src="thumb(mine().id)" :alt="t('designs.thumb_alt', {name: mine().name})" width="210" height="297" fetchpriority="high" decoding="async"
+                @load="$el.parentElement.classList.remove('skeleton')" @error="$el.parentElement.classList.remove('skeleton'); failed[mine().id] = true"></span>
+          <span class="about">
+            <span class="design-name"><b x-text="mine().name"></b><span class="badge accent" x-text="t('designs.in_use')"></span></span>
+            <span class="muted small" x-text="mine().sub"></span>
+            <span class="muted" x-text="mine().desc"></span>
+            <span class="small" x-text="t('designs.hero_hint')"></span>
+          </span>
+        </a>
+      </section>
+    </template>
+
+    <template x-for="g in groups()" :key="g.id">
+      <section x-show="g.items.length" :aria-labelledby="'dg-' + g.id">
+        <h2 :id="'dg-' + g.id" x-text="t('designs.' + g.id)"></h2>
+        <ul class="design-grid">
+          <template x-for="it in g.items" :key="it.id">
+            <li>
+              <a class="design-card" :class="it.id === current && 'on'" :href="link(it.id)" @click.prevent="go(it.id)">
+                <span class="thumb skeleton"><img :src="thumb(it.id)" :alt="t('designs.thumb_alt', {name: it.name})" width="210" height="297" loading="lazy" decoding="async"
+                      @load="$el.parentElement.classList.remove('skeleton')" @error="$el.parentElement.classList.remove('skeleton'); failed[it.id] = true"></span>
+                <span class="small muted" x-show="failed[it.id]" x-text="t('designs.thumb_failed')"></span>
+                <span class="design-name"><b x-text="it.name"></b><span class="badge accent" x-show="it.id === current" x-text="t('designs.in_use')"></span></span>
+                <span class="small muted" x-text="it.sub"></span>
+              </a>
+            </li>
+          </template>
+        </ul>
+      </section>
+    </template>
+  </div>
+
+  <!-- Customiser -->
+  <template x-if="mode === 'designer'">
+  <div>
+    <div class="page-head">
+      <div>
+        <a class="back" :href="'#designs'" @click.prevent="go()">
+          <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-left"/></svg><span x-text="t('designs.back_all')"></span>
+        </a>
+        <h1><span x-text="title()"></span> <span class="badge accent" x-show="current === look" x-text="t('designs.in_use')"></span></h1>
+      </div>
+      <div class="actions">
+        <button class="btn primary" x-show="current !== look" @click="use(look)" x-text="t('designs.use')"></button>
+        <button class="btn" @click="openSave()" x-text="t('designs.save_look')"></button>
+        <button class="btn ghost" x-show="presets[look]" @click="removePreset(look)" x-text="t('designs.delete_look')"></button>
+      </div>
+    </div>
+
+    <div class="designer">
+      <div class="controls">
+        <details class="panel" open>
+          <summary x-text="t('designer.sections')"></summary>
+          <p class="small muted" x-text="t('designer.sections_hint')"></p>
+          <template x-for="(r, i) in rows" :key="r.key">
+            <div class="sec-row">
+              <input type="checkbox" x-model="r.show" @change="refresh()" :aria-label="t('designer.show') + ': ' + sectionName(r.key)">
+              <input x-model="r.title" @input="refresh()" :placeholder="sectionName(r.key)" :aria-label="t('designer.heading') + ': ' + sectionName(r.key)">
+              <input class="num" type="number" min="0" x-model="r.max" @input="refresh()" :title="t('designer.max')" :aria-label="t('designer.max')">
+              <label class="check small" x-show="style.layout === 'sidebar'"><input type="checkbox" x-model="r.side" @change="refresh()"><span x-text="t('designer.side')"></span></label>
+              <button class="btn ghost icon sm" @click="move(i, -1)" :aria-label="t('up')"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button>
+              <button class="btn ghost icon sm" @click="move(i, 1)" :aria-label="t('down')"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button>
+            </div>
+          </template>
+        </details>
+
+        <details class="panel" open>
+          <summary x-text="t('designer.look')"></summary>
+          <div class="grid two">
+            <label class="field wide"><span x-text="t('designer.base')"></span>
+              <select x-model="design" @change="changeBase()"><template x-for="d in list" :key="d.id"><option :value="d.id" :selected="d.id === design" x-text="d.name"></option></template></select></label>
+            <label class="field"><span x-text="t('designer.accent')"></span><input type="color" x-model="style.accent" @input="refresh()"></label>
+            <label class="field"><span x-text="t('designer.font')"></span><select x-model="style.font" @change="style.heading_font = style.font; refresh()">
+              <template x-for="f in FONTS" :key="f"><option :value="f" :selected="f === style.font" x-text="f"></option></template></select></label>
+            <template x-for="[k, opts] in Object.entries(STYLE_CHOICES).filter(([k]) => k !== 'paper')" :key="k">
+              <label class="field"><span x-text="t('designer.' + k)"></span><select x-model="style[k]" @change="refresh()">
+                <template x-for="o in opts" :key="o"><option :value="o" :selected="o === style[k]" x-text="t('designer.opt.' + o)"></option></template></select></label>
+            </template>
+            <label class="field"><span x-text="t('designer.size')"></span><input type="range" min="9" max="12" step="0.1" x-model.number="style.size" @input="refresh()"></label>
+            <label class="field"><span x-text="t('designer.spacing')"></span><input type="range" min="0.4" max="0.9" step="0.02" x-model.number="style.leading" @input="refresh()"></label>
+            <label class="check wide"><input type="checkbox" x-model="style.group" @change="refresh()"><span x-text="t('designer.group')"></span></label>
+          </div>
+        </details>
+
+        <details class="panel">
+          <summary x-text="t('designer.page')"></summary>
+          <div class="grid two">
+            <label class="field"><span x-text="t('designer.paper')"></span><select x-model="style.paper" @change="refresh()">
+              <template x-for="o in STYLE_CHOICES.paper" :key="o"><option :value="o" :selected="o === style.paper" x-text="t('designer.opt.' + o)"></option></template></select></label>
+            <label class="field"><span x-text="t('designer.margins')"></span><input type="range" min="0.9" max="2.6" step="0.1" x-model.number="style.margin_x" @input="style.margin_y = Math.max(0.9, style.margin_x - 0.3); refresh()"></label>
+            <label class="field"><span x-text="t('designer.bullets')"></span><input type="number" min="0" max="10" x-model.number="s.max_bullets" @input="refresh()"></label>
+            <label class="field"><span x-text="t('designer.pages')"></span><input type="number" min="0" max="4" x-model.number="s.pages" @input="refresh()"></label>
+          </div>
+        </details>
+
+        <details class="panel">
+          <summary x-text="t('designer.letter')"></summary>
+          <div class="grid two">
+            <label class="field"><span x-text="t('designer.letter_layout')"></span><select x-model="s.letter_layout">
+              <option value="" x-text="t('designer.auto')"></option><option value="modern" x-text="t('designer.opt.modern')"></option>
+              <option value="formal" x-text="t('designer.opt.formal')"></option></select></label>
+            <label class="field"><span x-text="t('designer.signature')"></span><input type="file" accept=".png,.jpg,.jpeg" @change="signature($event)"></label>
+          </div>
+          <p class="small muted" x-text="t('designer.letter_hint')"></p>
+        </details>
+      </div>
+
+      <div class="pages" :class="updating && pages.length && 'busy'" aria-live="polite" :aria-busy="updating">
+        <div class="msg warn" x-show="pages.length > limit" x-text="t('designs.too_long', {n: pages.length, limit})"></div>
+        <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+        <p class="small muted updating" x-show="updating && pages.length" x-text="t('designs.updating')"></p>
+        <figure x-show="!pages.length && !err"><span class="thumb skeleton"></span><figcaption x-text="t('designs.rendering')"></figcaption></figure>
+        <template x-for="(src, i) in pages" :key="src">
+          <figure>
+            <img :src="src" :alt="t('designs.page_of', {n: i + 1, total: pages.length})" width="210" height="297">
+            <figcaption x-text="t('designs.page_of', {n: i + 1, total: pages.length})"></figcaption>
+          </figure>
+        </template>
+      </div>
+    </div>
+
+    <dialog class="modal" x-ref="save" :aria-label="t('designs.save_look')" @click.self="$el.close()">
+      <div class="dialog-head">
+        <h2 x-text="t('designs.save_look')"></h2>
+        <button class="btn ghost icon" :aria-label="t('nav.close')" @click="$refs.save.close()"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+      </div>
+      <form class="stack" @submit.prevent="save()">
+        <p class="muted small" x-text="t('designs.save_intro')"></p>
+        <label class="field"><span x-text="t('designer.name')"></span><input x-model="saveName" :placeholder="t('designer.name_hint')" required></label>
+        <label class="check"><input type="checkbox" class="switch" x-model="saveUse"><span x-text="t('designs.use_for_new')"></span></label>
+        <div class="msg bad" x-show="saveErr" role="alert" x-text="saveErr"></div>
+        <div class="actions">
+          <button class="btn primary" x-text="t('designs.save')"></button>
+          <button type="button" class="btn ghost" @click="$refs.save.close()" x-text="t('cancel')"></button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+  </template>
+</div>

@@ -1,0 +1,127 @@
+<div x-data="needs">
+  <div class="page-head">
+    <div>
+      <h1 x-text="t('tabs.needs')"></h1>
+      <p class="small" x-text="t('needs.intro')"></p>
+    </div>
+    <div class="actions">
+      <button class="btn" :disabled="busy || !mailOn" @click="checkMail()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-mail"/></svg><span x-text="t('needs.check_mail')"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="msg bad" x-show="mailStale()" role="alert" x-text="okAt ? t('needs.mail_stale', {when: when(okAt)}) : t('needs.mail_never')"></div>
+  <div class="msg bad" x-show="failing" role="alert" x-text="failing && t('needs.alerts_failing', {when: when(failing)})"></div>
+  <p class="msg info" x-show="!loading && !mailOn">
+    <span x-text="t('needs.mail_off')"></span>
+    <a href="#settings/email" @click.prevent="$store.app.show('settings', 'email')" x-text="t('settings.groups.email')"></a></p>
+  <div class="msg bad" x-show="err" role="alert"><span x-text="err"></span> <button class="btn sm" @click="load()" x-text="t('board.retry')"></button></div>
+  <div class="list" x-show="loading" aria-busy="true" :aria-label="t('needs.loading')">
+    <template x-for="n in 3" :key="n"><div class="item"><span class="skeleton sk-line"></span></div></template>
+  </div>
+  <div class="empty" x-show="!loading && !err && !items.length && !coming.length">
+    <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><span x-text="t('needs.empty')"></span>
+  </div>
+
+  <section class="need-sec" x-show="coming.length">
+    <h2 class="sub" x-text="t('needs.coming_up')"></h2>
+    <ul class="list">
+      <template x-for="c in coming" :key="c.id">
+        <li class="item">
+          <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-calendar"/></svg>
+          <div class="job-main"><span class="num at" x-text="when(c.at)"></span>
+            <div class="app-meta"><span x-text="c.company"></span><span aria-hidden="true">·</span><span x-text="c.role"></span></div></div>
+          <button class="btn secondary sm" @click="prepare(c.id)" x-text="t('needs.prepare')"></button>
+        </li>
+      </template>
+    </ul>
+  </section>
+
+  <template x-for="g in [['act', act()], ['link', link()]]" :key="g[0]">
+    <section class="need-sec" x-show="g[1].length">
+      <div class="group-head">
+        <h2 class="sub"><span x-text="t('needs.' + g[0])"></span> <span class="count num" x-text="g[1].length"></span></h2>
+        <button class="btn ghost sm" x-show="g[0] === 'link'" :disabled="busy" @click="recheck()" :title="t('needs.recheck_hint')" x-text="t('needs.recheck')"></button>
+      </div>
+      <p class="small muted" x-text="t('needs.' + g[0] + '_d')"></p>
+      <ul class="list mail-items">
+        <template x-for="m in g[1]" :key="m.id">
+          <li class="item">
+            <button type="button" class="mail-head" :aria-expanded="open === m.id" @click="toggle(m)">
+              <span class="job-main">
+                <span class="mail-subj">
+                  <span class="badge" :class="SIGNAL_TONE[m.signal]" x-show="m.signal" x-text="t('applications.signal.' + m.signal)"></span>
+                  <span class="job-title" x-text="m.subject"></span>
+                </span>
+                <span class="app-meta">
+                  <span x-text="m.account ? t('needs.company_action', {company: m.company}) : [m.company, m.role].filter(Boolean).join(' · ')"></span>
+                  <span aria-hidden="true">·</span><span class="num" x-text="fmtDate(m.date)"></span>
+                  <span class="badge" x-show="m.at"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-calendar"/></svg><span class="num" x-text="m.at && when(m.at)"></span></span>
+                </span>
+                <span class="mail-summary" x-show="m.summary" x-text="m.summary"></span>
+              </span>
+              <svg class="i sm chev" aria-hidden="true"><use href="/static/icons.svg#i-chevron-right"/></svg>
+              <span class="sr-only" x-text="t('needs.read')"></span>
+            </button>
+            <div class="mail-sort" x-show="open === m.id">
+              <p class="mail-body" x-text="m.body || m.snippet"></p>
+              <fieldset class="cands" x-show="asks(m)">
+                <legend x-text="t('needs.which')"></legend>
+                <template x-for="c in m.candidates" :key="c.id">
+                  <label class="opt-card"><input type="radio" :name="'pick-' + m.id" :value="String(c.id)" x-model="picks[m.id]">
+                    <span><b x-text="c.role"></b>
+                      <small x-text="c.company + ' · ' + t('needs.applied_on', {date: fmtDate(c.date_applied)})"></small>
+                      <small class="why" x-show="c.why" x-text="c.why"></small></span></label>
+                </template>
+                <label class="field"><span x-text="m.candidates.length ? t('needs.another') : t('needs.which')"></span>
+                  <select x-model="picks[m.id]">
+                    <option value="" x-text="'—'"></option>
+                    <template x-for="a in others(m)" :key="a.id">
+                      <option :value="String(a.id)" x-text="a.company + ' · ' + a.role + ' · ' + t('needs.applied_on', {date: fmtDate(a.date_applied)})"></option></template>
+                  </select></label>
+              </fieldset>
+              <label class="field" x-show="timeless(m)"><span x-text="t('needs.no_time')"></span>
+                <input type="datetime-local" class="auto" x-model="at[m.id]"></label>
+              <div class="app-acts">
+                <a class="btn ghost sm" x-show="m.mail" :href="m.mail" target="_blank" rel="noopener noreferrer">
+                  <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-mail"/></svg><span x-text="t('needs.open_mail')"></span></a>
+                <button class="btn primary sm" :disabled="busy || (m.group === 'link' && !picks[m.id])" @click="done(m)"
+                        x-text="m.group === 'act' ? t('needs.done') : t('needs.save')"></button>
+                <button class="btn ghost sm" x-show="m.group === 'link'" :disabled="busy" @click="dismiss(m)" x-text="t('needs.dismiss')"></button>
+              </div>
+            </div>
+          </li>
+        </template>
+      </ul>
+    </section>
+  </template>
+
+
+  <details class="app-group need-sec" x-show="filed.length">
+    <summary>
+      <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-right"/></svg>
+      <h2 x-text="t('needs.filed')"></h2><span class="count num" x-text="filed.length"></span>
+    </summary>
+    <p class="small muted" x-text="t('needs.filed_d')"></p>
+    <ul class="list filed">
+      <template x-for="m in filed" :key="m.id">
+        <li class="item">
+          <div class="job-main">
+            <span x-text="m.note || m.subject"></span>
+            <div class="app-meta"><span class="num" x-text="fmtDate(m.date)"></span><span aria-hidden="true">·</span><span x-text="m.subject"></span></div>
+            <div class="inline" x-show="relink === m.id">
+              <select class="auto" x-model="picks[m.id]" :aria-label="t('needs.which')">
+                <option value="" x-text="t('needs.which')"></option>
+                <template x-for="c in m.candidates" :key="c.id"><option :value="String(c.id)" x-text="c.role + ' · ' + c.company"></option></template>
+                <template x-for="a in others(m)" :key="a.id"><option :value="String(a.id)" x-text="a.company + ' · ' + a.role"></option></template>
+              </select>
+              <button class="btn primary sm" :disabled="busy || !picks[m.id]" @click="settle(m, {app_id: Number(picks[m.id])})" x-text="t('needs.save')"></button>
+            </div>
+          </div>
+          <button class="btn ghost sm" @click="openRelink(m)" x-text="t('needs.wrong')"></button>
+        </li>
+      </template>
+    </ul>
+  </details>
+</div>

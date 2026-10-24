@@ -1,0 +1,152 @@
+<div x-data="board">
+  <div class="page-head">
+    <div>
+      <h1 x-text="t('tabs.board')"></h1>
+      <p class="small" aria-live="polite">
+        <span x-text="statusLine()"></span>
+        <a href="#settings" @click.prevent="$store.app.show('settings', 'search')" x-text="t('board.search_settings')"></a>
+      </p>
+    </div>
+    <div class="actions">
+      <button class="btn primary" :disabled="status.running" @click="search()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-search"/></svg>
+        <span x-text="status.running ? t('board.searching') : t('board.search')"></span>
+      </button>
+      <button class="btn" :disabled="!!busy || !jobs.length" @click="rank()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-sparkles"/></svg><span x-text="t('board.rank')"></span>
+      </button>
+      <button class="btn" @click="$refs.add.showModal()">
+        <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('board.add_job')"></span>
+      </button>
+    </div>
+  </div>
+  <section x-data="finishSetup" class="panel finish" x-show="items.length" aria-labelledby="fs-h">
+    <div class="group-head">
+      <h2 id="fs-h" x-text="t('setup.finish_card.title')"></h2>
+      <span class="small muted" x-text="t('setup.finish_card.left', {n: items.length})"></span>
+    </div>
+    <p class="muted small" x-text="t('setup.finish_card.intro')"></p>
+    <ul class="finish-list">
+      <template x-for="id in items" :key="id">
+        <li>
+          <button type="button" class="btn ghost finish-go" @click="open(id)">
+            <span class="grow"><b x-text="t('setup.finish_card.' + id + '.t')"></b><small x-text="t('setup.finish_card.' + id + '.d')"></small></span>
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-chevron-right"/></svg>
+          </button>
+          <button type="button" class="btn ghost icon sm" @click="dismiss(id)" :aria-label="t('setup.finish_card.hide', {item: t('setup.finish_card.' + id + '.t')})"
+                  :title="t('setup.finish_card.hide_short')"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+        </li>
+      </template>
+    </ul>
+  </section>
+  <div class="msg info" x-show="busy" x-text="busy"></div>
+
+  <nav :aria-label="t('board.sections')">
+    <template x-for="s in [...personalSections(), ...sections(), 'less']" :key="s">
+      <button :aria-pressed="section === s" @click="pick(s)" x-text="t('board.section.' + s) + (count(s) === null ? '' : ' (' + count(s).toLocaleString() + ')')"></button>
+    </template>
+  </nav>
+
+  <div class="toolbar">
+    <input type="search" x-model="q" :placeholder="t('board.filter')" :aria-label="t('board.filter')">
+    <select x-model="sort" :aria-label="t('board.sort')">
+      <option value="fit" x-text="t('board.sort_fit')"></option>
+      <option value="new" x-text="t('board.sort_new')"></option>
+      <option value="deadline" x-text="t('board.sort_deadline')"></option>
+    </select>
+    <select x-model="days" :aria-label="t('board.posted_within')">
+      <option value="" x-text="t('board.any_time')"></option>
+      <template x-for="n in [7, 14, 30]" :key="n"><option :value="n" x-text="t('board.within', {n})"></option></template>
+    </select>
+    <select x-model="country" x-show="countries().length > 1 && !byStatus(section)" :aria-label="t('board.all_countries')">
+      <option value="" x-text="t('board.all_countries')"></option>
+      <template x-for="c in countries()" :key="c"><option :value="c" :selected="c === country" x-text="countryName(c)"></option></template>
+    </select>
+  </div>
+
+  <div class="chips" x-show="section === 'less'" role="group" :aria-label="t('board.reason_label')">
+    <template x-for="r in ['', 'weak', 'type', 'excluded', 'offtopic']" :key="r">
+      <button class="chip" :aria-pressed="reason === r" @click="reason = r; limit = 100" x-text="t('board.reason.' + (r || 'all'))"></button>
+    </template>
+  </div>
+
+  <div class="msg bad" x-show="err" role="alert">
+    <span x-text="err"></span> <button class="btn sm" @click="reload()" x-text="t('board.retry')"></button>
+  </div>
+
+  <div class="list jobs" x-show="loading" aria-busy="true" :aria-label="t('board.loading')">
+    <template x-for="n in 5" :key="n"><div class="item"><span class="skeleton sk-fit"></span><span class="skeleton sk-line"></span></div></template>
+  </div>
+
+  <div class="empty" x-show="!loading && !err && !visible().length">
+    <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-layout-list"/></svg>
+    <span x-text="emptyText()"></span>
+  </div>
+
+  <ul class="list jobs" x-show="!loading && visible().length">
+    <template x-for="j in visible()" :key="j.key">
+      <li class="item">
+        <span class="fit" :class="band(j.score)" :title="t('board.band.' + band(j.score))" role="img"
+              :aria-label="t('board.band.' + band(j.score)) + ': ' + Math.round(j.score || 0)">
+          <svg viewBox="0 0 28 28" aria-hidden="true"><circle class="track" cx="14" cy="14" r="12.5"/>
+            <circle class="val" cx="14" cy="14" r="12.5" pathLength="100" :stroke-dasharray="Math.round(j.score || 0) + ' 100'"/></svg>
+          <span aria-hidden="true" x-text="Math.round(j.score || 0)"></span>
+        </span>
+        <div class="job-main">
+          <a class="job-title" :href="j.link" target="_blank" rel="noopener">
+            <span x-text="j.title || t('board.untitled')"></span><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-external-link"/></svg>
+            <span class="sr-only" x-text="t('board.new_tab')"></span>
+          </a>
+          <div class="job-meta" x-text="meta(j)"></div>
+          <div class="job-why">
+            <span class="badge danger" x-show="section === 'less'" x-text="t('board.reason.' + j.reason)"></span>
+            <span class="badge" x-show="(section === 'less' || byStatus(section)) && j.type" x-text="T.board.section[j.type] || j.type"></span>
+            <span class="badge" x-show="j.deadline" :class="soon(j.deadline) && 'warn'" x-text="closes(j.deadline)"></span>
+            <span class="badge accent" x-show="j.applied_before" x-text="t('board.applied_before', {n: j.applied_before})"></span>
+            <span class="badge" x-show="j.applicants" :title="t('board.applicants_d')" x-text="j.applicants?.text"></span>
+            <span class="badge" x-show="j.status === 'paused'" x-text="t('board.paused')"></span>
+            <template x-for="w in warns(j)" :key="w"><span class="badge warn" x-text="w"></span></template>
+            <span x-text="whyText(j)"></span>
+          </div>
+          <input class="job-note" x-show="j.note || j.noting" x-model="j.note" @change="saveNote(j)" :placeholder="t('board.note')" :aria-label="t('board.note')">
+        </div>
+        <div class="job-acts" x-show="section !== 'less'">
+          <button class="btn ghost icon sm star" :aria-pressed="j.status === 'shortlisted'" :title="t('board.star')" :aria-label="t('board.star')"
+                  @click="setStatus(j, j.status === 'shortlisted' ? 'new' : 'shortlisted')"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-star"/></svg></button>
+          <button class="btn ghost icon sm" x-show="['applying', 'paused'].includes(j.status)" :title="t('board.discard')" :aria-label="t('board.discard')"
+                  @click="discard(j)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-trash-2"/></svg></button>
+          <button class="btn ghost icon sm" :title="t('board.note')" :aria-label="t('board.note')"
+                  @click="j.noting = true; $nextTick(() => $el.closest('li').querySelector('.job-note').focus())"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-pencil"/></svg></button>
+          <button class="btn ghost icon sm" :title="t('board.skip')" :aria-label="t('board.skip')"
+                  @click="setStatus(j, 'skipped')"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+          <button class="btn primary sm" @click="open(j.key)" x-text="['applying', 'paused'].includes(j.status) ? t('board.continue') : t('board.apply')"></button>
+        </div>
+        <div class="job-acts" x-show="section === 'less'">
+          <button class="btn secondary sm" @click="keep(j)" x-text="t('board.move')"></button>
+          <button class="btn primary sm" @click="applyLess(j)" x-text="t('board.apply')"></button>
+        </div>
+      </li>
+    </template>
+  </ul>
+  <div class="actions" x-show="left() > 0">
+    <button class="btn" @click="limit += 100" x-text="t('board.more', {n: left()})"></button>
+  </div>
+
+  <dialog class="modal" x-ref="add" :aria-label="t('board.add_job')" @click.self="$el.close()">
+    <div class="dialog-head">
+      <h2 x-text="t('board.add_job')"></h2>
+      <button class="btn ghost icon" :aria-label="t('nav.close')" @click="$refs.add.close()"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+    </div>
+    <form class="stack" @submit.prevent="add()">
+      <p class="muted small" x-text="t('board.add_intro')"></p>
+      <label class="field"><span x-text="t('board.url')"></span><input type="url" x-model="url" placeholder="https://…" spellcheck="false"></label>
+      <label class="field"><span x-text="t('board.text')"></span><textarea x-model="text" rows="5"></textarea></label>
+      <div class="msg info" x-show="adding" x-text="t('working')"></div>
+      <div class="msg bad" x-show="addErr" role="alert" x-text="addErr"></div>
+      <div class="actions">
+        <button class="btn primary" :disabled="adding || !(url.trim() || text.trim())" x-text="t('board.add')"></button>
+        <button type="button" class="btn ghost" @click="$refs.add.close()" x-text="t('cancel')"></button>
+      </div>
+    </form>
+  </dialog>
+</div>

@@ -1,0 +1,291 @@
+<div x-data="settings">
+  <div class="page-head">
+    <div>
+      <h1 x-text="t('tabs.settings')"></h1>
+      <p x-text="t('settings.intro')"></p>
+    </div>
+  </div>
+  <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+
+  <div class="cv-layout">
+    <nav class="cv-nav set-nav" :aria-label="t('settings.nav')">
+      <template x-for="g in groups()" :key="g">
+        <button type="button" :aria-current="group() === g ? 'page' : null" @click="go(g)" x-text="t('settings.groups.' + g)"></button>
+      </template>
+    </nav>
+
+    <div class="stack">
+      <div x-include="ask.html"></div>
+
+      <section class="panel" aria-labelledby="set-h">
+        <div class="group-head">
+          <h2 id="set-h" x-text="t('settings.groups.' + group())"></h2>
+          <span class="saved-note" role="status"><span x-show="$store.saved.on">
+            <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><span x-text="t('settings.saved')"></span></span></span>
+        </div>
+
+        <div x-show="!p && !err" aria-busy="true" :aria-label="t('settings.loading')">
+          <template x-for="n in 4" :key="n"><span class="skeleton sk-line sk-block sk-gap"></span></template>
+        </div>
+
+        <!-- Job search -->
+        <template x-if="p && group() === 'search'">
+          <div>
+            <div class="set wide">
+              <div><div class="set-t" x-text="t('settings.countries')"></div><div class="set-d" x-text="t('settings.countries_d')"></div></div>
+              <div class="ctl">
+                <template x-for="(c, i) in p.targets" :key="c.code">
+                  <span class="chip"><span x-text="country(c.code)"></span>
+                    <button type="button" class="btn ghost icon sm" :aria-label="t('settings.remove_country', {c: country(c.code)})"
+                            @click="p.targets.splice(i, 1); save('targets')"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button></span>
+                </template>
+                <select class="auto" x-model="pick" @change="addTarget()" :aria-label="t('settings.add_country')">
+                  <option value="" x-text="t('settings.add_country')"></option>
+                  <template x-for="[code, name] in Object.entries(st.countries)" :key="code"><option :value="code" x-text="name"></option></template>
+                </select>
+              </div>
+              <p class="set-d"><span x-text="t('settings.details_link')"></span>
+                <a href="#profile/details" @click.prevent="$store.app.show('profile', 'details')" x-text="t('settings.details_open')"></a></p>
+            </div>
+            <div class="set wide">
+              <div><div class="set-t" x-text="t('settings.job_types')"></div><div class="set-d" x-text="t('settings.job_types_d')"></div></div>
+              <div class="ctl chips" role="group" :aria-label="t('settings.job_types')">
+                <template x-for="j in JOB_TYPES" :key="j">
+                  <label class="chip"><input type="checkbox" :value="j" x-model="p.job_types" @change="typesChanged()"><span x-text="t('jobtypes.' + j)"></span></label>
+                </template>
+              </div>
+            </div>
+            <div class="set wide" x-show="p.job_types.length > 1">
+              <div><div class="set-t" x-text="t('settings.focus')"></div><div class="set-d" x-text="t('settings.focus_d')"></div></div>
+              <div class="ctl chips" role="group" :aria-label="t('settings.focus')">
+                <template x-for="j in p.job_types" :key="j">
+                  <label class="chip"><input type="checkbox" :checked="!(p.side_types || []).includes(j)" @change="toggleSide(j)"><span x-text="t('jobtypes.' + j)"></span></label>
+                </template>
+              </div>
+            </div>
+            <div class="set" x-show="p.job_types.includes('thesis')">
+              <label for="s-thesis"><span class="set-t" x-text="t('setup.follow.thesis')"></span><span class="set-d" x-text="t('settings.thesis_d')"></span></label>
+              <select id="s-thesis" class="ctl" x-model="p.thesis_level" @change="save('thesis_level')">
+                <template x-for="l in ['', 'bachelor', 'master']" :key="l">
+                  <option :value="l" :selected="l === p.thesis_level" x-text="t('setup.follow.thesis_' + (l || 'any'))"></option></template></select>
+            </div>
+            <div class="set" x-show="p.job_types.includes('internship')">
+              <label for="s-mand"><span class="set-t" x-text="t('setup.follow.mandatory')"></span><span class="set-d" x-text="t('settings.mandatory_d')"></span></label>
+              <input id="s-mand" type="checkbox" class="switch ctl" x-model="p.mandatory_internship" @change="save('mandatory_internship')">
+            </div>
+            <div class="msg info stack" x-show="wordsBusy || newWords" role="status">
+              <span x-show="wordsBusy" x-text="t('settings.words_busy')"></span>
+              <template x-if="newWords">
+                <div class="stack">
+                  <span x-text="t('settings.words_new')"></span>
+                  <b x-text="newWords.titles.join(', ')"></b>
+                  <span class="small" x-text="Object.values(newWords.keywords).flat().join(', ')"></span>
+                  <div class="actions">
+                    <button class="btn primary sm" @click="useWords()" x-text="t('settings.words_use')"></button>
+                    <button class="btn ghost sm" @click="newWords = null" x-text="t('settings.words_keep')"></button>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <div class="set wide">
+              <label for="s-titles"><span class="set-t" x-text="t('settings.titles')"></span><span class="set-d" x-text="t('settings.titles_d')"></span></label>
+              <textarea id="s-titles" rows="2" :value="p.titles.join(', ')" @change="saveList('titles', $event.target.value)"></textarea>
+            </div>
+            <div class="set wide">
+              <div><div class="set-t" x-text="t('settings.keywords')"></div><div class="set-d" x-text="t('settings.keywords_d')"></div></div>
+              <template x-for="(k, i) in keywords" :key="i">
+                <div class="kw-row">
+                  <input class="lang" x-model="k.lang" @change="saveKeywords()" :aria-label="t('settings.lang_code')" :placeholder="t('settings.lang_code')">
+                  <textarea rows="2" x-model="k.words" @change="saveKeywords()" :aria-label="t('settings.words') + ' ' + k.lang"></textarea>
+                  <button type="button" class="btn ghost icon" :aria-label="t('settings.remove_language')" @click="keywords.splice(i, 1); saveKeywords()">
+                    <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></button>
+                </div>
+              </template>
+              <div><button type="button" class="btn sm" @click="keywords.push({lang: '', words: ''})">
+                <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg><span x-text="t('settings.add_language')"></span></button></div>
+            </div>
+            <div class="set">
+              <label for="s-places"><span class="set-t" x-text="t('settings.places')"></span><span class="set-d" x-text="t('settings.places_d')"></span></label>
+              <input id="s-places" :value="p.places.join(', ')" @change="saveList('places', $event.target.value)">
+            </div>
+            <div class="set">
+              <label for="s-radius"><span class="set-t" x-text="t('settings.radius')"></span><span class="set-d" x-text="t('settings.radius_d')"></span></label>
+              <input id="s-radius" type="number" min="0" max="500" inputmode="numeric" x-model.number="p.radius_km" @change="save('radius_km')">
+            </div>
+            <div class="set">
+              <label for="s-remote"><span class="set-t" x-text="t('settings.remote')"></span><span class="set-d" x-text="t('settings.remote_d')"></span></label>
+              <select id="s-remote" x-model="p.remote" @change="save('remote')">
+                <template x-for="r in ['any', 'remote', 'hybrid', 'onsite']" :key="r"><option :value="r" :selected="r === p.remote" x-text="t('setup.remote_' + r)"></option></template>
+              </select>
+            </div>
+            <div class="set">
+              <div><div class="set-t" x-text="t('settings.daily')"></div><div class="set-d" x-text="t('settings.daily_d')"></div></div>
+              <div class="ctl">
+                <input type="time" class="auto" x-show="p.search_time" x-model="p.search_time" @change="p.search_time && save('search_time')" :aria-label="t('settings.daily_at')">
+                <input type="checkbox" class="switch" :checked="!!p.search_time" :aria-label="t('settings.daily')"
+                       @change="p.search_time = $event.target.checked ? '09:00' : ''; save('search_time')">
+              </div>
+            </div>
+            <div class="set wide">
+              <div><div class="set-t" x-text="t('settings.sources')"></div><div class="set-d" x-text="t('settings.sources_d')"></div></div>
+              <ul class="list">
+                <template x-for="s in sources" :key="s">
+                  <li class="item">
+                    <div class="grow"><div x-text="s"></div>
+                      <div class="small" :class="health[s]?.error || coverageOf(s)?.gap ? 'bad' : 'muted'" x-text="sourceHealth(s)"></div></div>
+                    <input type="checkbox" class="switch" :checked="!p.sources_off.includes(s)" @change="toggleSource(s)" :aria-label="s">
+                  </li>
+                </template>
+              </ul>
+              <details x-show="dropped.length"><summary class="small" x-text="t('settings.dropped', {n: dropped.length})"></summary>
+                <ul class="small muted"><template x-for="d in dropped" :key="d"><li x-text="d"></li></template></ul></details>
+            </div>
+            <div class="set">
+              <label for="s-second"><span class="set-t" x-text="t('settings.second_look')"></span><span class="set-d" x-text="t('settings.second_look_d')"></span></label>
+              <div class="ctl"><input id="s-second" type="checkbox" class="switch" x-model="p.ai_second_look" @change="save('ai_second_look')"></div>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="p && group() === 'sites'"><div x-include="sites.html"></div></template>
+
+        <!-- Ranking -->
+        <template x-if="p && group() === 'ranking'">
+          <div>
+            <div class="set wide">
+              <div><div class="set-t" x-text="t('settings.weights')"></div><div class="set-d" x-text="t('settings.weights_d')"></div></div>
+              <div class="grid">
+                <template x-for="w in ['skills', 'location', 'seniority', 'language']" :key="w">
+                  <label class="field"><span x-text="t('settings.w_' + w) + ': ' + p.weights[w]"></span>
+                    <input type="range" min="0" max="2" step="0.25" x-model.number="p.weights[w]" @change="save('weights')"></label>
+                </template>
+              </div>
+            </div>
+            <template x-for="k in ['prefer', 'avoid', 'exclude']" :key="k">
+              <div class="set wide">
+                <label :for="'s-' + k"><span class="set-t" x-text="t('settings.' + k)"></span><span class="set-d" x-text="t('settings.' + k + '_d')"></span></label>
+                <textarea :id="'s-' + k" rows="2" :value="p[LISTS[k]].join(', ')" @change="saveList(LISTS[k], $event.target.value)"></textarea>
+              </div>
+            </template>
+            <div class="set">
+              <label for="s-airank"><span class="set-t" x-text="t('settings.ai_ranking')"></span><span class="set-d" x-text="t('settings.ai_ranking_d')"></span></label>
+              <div class="ctl"><input id="s-airank" type="checkbox" class="switch" x-model="p.ai_ranking" @change="save('ai_ranking')"></div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Writing -->
+        <template x-if="p && group() === 'writing'">
+          <div>
+            <div class="set">
+              <label for="s-lang"><span class="set-t" x-text="t('settings.doc_language')"></span><span class="set-d" x-text="t('settings.doc_language_d')"></span></label>
+              <select id="s-lang" x-model="p.doc_language" @change="save('doc_language')">
+                <option value="match" x-text="t('settings.match_posting')"></option>
+                <template x-for="l in ['en', 'de', 'fr', 'es', 'it', 'nl', 'pt', 'pl', 'sv', 'da']" :key="l"><option :value="l" :selected="l === p.doc_language" x-text="l"></option></template>
+              </select>
+            </div>
+            <div class="set">
+              <label for="s-depth"><span class="set-t" x-text="t('settings.review_depth')"></span><span class="set-d" x-text="t('settings.review_depth_d')"></span></label>
+              <select id="s-depth" x-model="p.review_depth" @change="save('review_depth')">
+                <template x-for="d in ['all', 'big', 'none']" :key="d"><option :value="d" :selected="d === p.review_depth" x-text="t('settings.depth_' + d)"></option></template>
+              </select>
+            </div>
+            <div class="set wide">
+              <label for="s-instr"><span class="set-t" x-text="t('settings.instructions')"></span><span class="set-d" x-text="t('settings.instructions_d')"></span></label>
+              <textarea id="s-instr" rows="3" x-model="p.instructions" @change="save('instructions')" :placeholder="t('settings.instructions_hint')"></textarea>
+            </div>
+            <div class="set wide">
+              <span class="set-t" x-text="t('settings.style')"></span><span class="set-d" x-text="t('settings.style_d')"></span>
+              <a href="#profile/writing" @click.prevent="$store.app.show('profile', 'writing')" x-text="t('profile.edit_letter')"></a>
+            </div>
+          </div>
+        </template>
+
+        <!-- AI -->
+        <template x-if="p && group() === 'ai'">
+          <div>
+            <div class="set">
+              <label for="s-agent"><span class="set-t" x-text="t('settings.agent')"></span><span class="set-d" x-text="t('settings.agent_d')"></span></label>
+              <div class="ctl">
+                <select id="s-agent" class="auto" x-model="p.agent" @change="save('agent'); aiTest = ''">
+                  <template x-for="[name, ok] in Object.entries(st.agents)" :key="name">
+                    <option :value="name" :selected="name === p.agent" :disabled="!ok"
+                            x-text="name + (!ok ? ' (' + t('settings.not_installed') + ')' : name === 'claude' ? '' : ' (' + t('settings.agent_beta') + ')')"></option></template>
+                </select>
+                <button class="btn" :disabled="aiTest === t('settings.testing')" @click="testAI()" x-text="t('settings.test_ai')"></button>
+              </div>
+              <p class="small set-note" role="status" x-show="aiTest" x-text="aiTest"></p>
+            </div>
+            <div class="set">
+              <label for="s-cost"><span class="set-t" x-text="t('settings.cost')"></span><span class="set-d" x-text="t('settings.cost_d')"></span></label>
+              <select id="s-cost" x-model="p.cost_level" @change="save('cost_level')">
+                <template x-for="c in ['economy', 'standard', 'premium']" :key="c"><option :value="c" :selected="c === p.cost_level" x-text="t('settings.cost_' + c)"></option></template>
+              </select>
+            </div>
+            <div class="set wide" x-data="{ days: 30, u: null, async load() { this.u = await api('/api/ai-usage?days=' + this.days); } }" x-init="load()">
+              <div class="group-head">
+                <div><span class="set-t" x-text="t('settings.ai_use')"></span><span class="set-d" x-text="t('settings.ai_use_d')"></span></div>
+                <select class="auto" x-model.number="days" @change="load()" :aria-label="t('settings.ai_use')">
+                  <option value="30" x-text="t('settings.last_30')"></option><option value="0" x-text="t('settings.all_time')"></option>
+                </select>
+              </div>
+              <p class="small muted" x-show="u && !u.steps.length" x-text="t('settings.ai_use_none')"></p>
+              <table class="usage" x-show="u?.steps.length">
+                <thead><tr><th x-text="t('apply.u_step')"></th><th x-text="t('settings.calls')"></th><th x-text="t('apply.u_in')"></th>
+                  <th x-text="t('apply.u_cached')"></th><th x-text="t('apply.u_out')"></th><th x-text="t('apply.u_cost')"></th><th x-text="t('settings.avg_s')"></th></tr></thead>
+                <tbody><template x-for="s in [...(u?.steps || []), {...usageTotal(u?.steps || []), calls: (u?.steps || []).reduce((a, x) => a + x.calls, 0)}]">
+                  <tr :class="s.total && 'total'"><td x-text="stepName(s.step)"></td><td x-text="s.calls + (s.failed ? ' (' + s.failed + ' ✗)' : '')"></td>
+                    <td x-text="kTok(s.input)"></td><td x-text="kTok(s.cached)"></td><td x-text="kTok(s.output)"></td>
+                    <td x-text="'$' + (s.cost_usd || 0).toFixed(2)"></td><td x-text="s.seconds ? Math.round(s.seconds) : ''"></td></tr>
+                </template></tbody>
+              </table>
+              <p class="small" x-show="u?.apps.n" x-text="u && t('settings.per_app', {n: u.apps.n, i: kTok(u.apps.input / u.apps.n), o: kTok(u.apps.output / u.apps.n), c: (u.apps.cost_usd / u.apps.n).toFixed(2)})"></p>
+              <p class="small muted" x-text="t('apply.u_note')"></p>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="p && group() === 'email'"><div x-include="email.html"></div></template>
+        <template x-if="p && group() === 'alerts'"><div x-include="alerts.html"></div></template>
+
+        <!-- Appearance -->
+        <template x-if="p && group() === 'appearance'">
+          <div>
+            <div class="set">
+              <label for="s-theme"><span class="set-t" x-text="t('settings.theme')"></span><span class="set-d" x-text="t('settings.theme_d')"></span></label>
+              <select id="s-theme" x-model="p.theme" @change="save('theme'); applyTheme(p.theme)">
+                <template x-for="th in ['auto', 'light', 'dark']" :key="th"><option :value="th" :selected="th === p.theme" x-text="t('settings.theme_' + th)"></option></template>
+              </select>
+            </div>
+            <div class="set">
+              <label for="s-applang"><span class="set-t" x-text="t('settings.app_language')"></span><span class="set-d" x-text="t('settings.app_language_d')"></span></label>
+              <select id="s-applang" x-model="p.app_language" @change="save('app_language')"><option value="en">English</option></select>
+            </div>
+          </div>
+        </template>
+
+        <!-- Your data -->
+        <template x-if="p && group() === 'data'">
+          <div>
+            <template x-for="k in ['folder', 'backup', 'csv', 'json', 'prompts']" :key="k">
+              <div class="set">
+                <div><div class="set-t" x-text="t('settings.' + k)"></div><div class="set-d" x-text="t('settings.' + k + '_d')"></div></div>
+                <div class="ctl"><button class="btn" @click="data(k)" x-text="t('settings.' + k + '_go')"></button></div>
+              </div>
+            </template>
+            <div class="set wide">
+              <div><div class="set-t bad" x-text="t('settings.delete_title')"></div><div class="set-d" x-text="t('settings.delete_hint')"></div></div>
+              <form class="inline" @submit.prevent="deleteAll()">
+                <input class="auto" x-model="confirm" placeholder="DELETE" :aria-label="t('settings.delete_label')" autocomplete="off">
+                <button class="btn danger" :disabled="confirm !== 'DELETE'" x-text="t('settings.delete_all')"></button>
+              </form>
+            </div>
+          </div>
+        </template>
+
+        <p class="tip" x-show="p && !['email', 'sites'].includes(group())">
+          <svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-sparkles"/></svg><span x-text="t('settings.tip')"></span></p>
+      </section>
+    </div>
+  </div>
+</div>

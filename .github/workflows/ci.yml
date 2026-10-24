@@ -1,0 +1,34 @@
+name: tests
+on: [push, pull_request]
+permissions:
+  contents: read
+# Actions are pinned to a commit (a tag can be moved to other code); Dependabot proposes updates.
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa  # v10.3.1
+      - run: uv sync
+      - run: uv run pytest -q
+  audit:  # known vulnerabilities in the exact dependency versions in uv.lock
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa  # v10.3.1
+      - run: uv export --format requirements-txt --no-dev --no-emit-project -o requirements.txt
+      - run: uvx pip-audit --disable-pip -r requirements.txt
+  canary:  # the live job sources still answer (maintainers only; never blocks a merge)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa  # v10.3.1
+      - run: uv sync
+      - run: uv run careerpilot source-test DE "software engineer"
+      - run: uv run careerpilot source-test GB "nurse"
