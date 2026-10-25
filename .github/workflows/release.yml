@@ -3,7 +3,7 @@ on:
   push:
     tags: ["v*"]
 jobs:
-  pypi:  # trusted publishing: set up the "careerpilot" project on pypi.org for this repository first
+  pypi:  # trusted publishing: set up the "jobquill" project on pypi.org for this repository first
     # PyPI is public: nothing is published until the repository variable PUBLISH_PYPI is "true" (when going public)
     if: vars.PUBLISH_PYPI == 'true'
     runs-on: ubuntu-latest

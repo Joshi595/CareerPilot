@@ -1,7 +1,7 @@
 # CV designs
 
-There is one Typst engine (`careerpilot/templates/engine/cv.typ` and `letter.typ`). A design is a YAML preset of its
-building blocks in `careerpilot/templates/designs/<name>.yaml`:
+There is one Typst engine (`jobquill/templates/engine/cv.typ` and `letter.typ`). A design is a YAML preset of its
+building blocks in `jobquill/templates/designs/<name>.yaml`:
 
 ```yaml
 name: My design
@@ -22,4 +22,4 @@ New Computer Modern, Lato, Fira Sans), `size`, `leading`, `margin_x`, `margin_y`
 People change any of these in the designer and save their own "looks"; those stay in their data folder.
 
 To add a design: add the YAML file and run `uv run pytest tests/test_designs.py` (every design is rendered for two
-example people). Fonts must be OFL-licensed; add new ones to `careerpilot/templates/fonts/` with their licence.
+example people). Fonts must be OFL-licensed; add new ones to `jobquill/templates/fonts/` with their licence.

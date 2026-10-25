@@ -2,13 +2,13 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from careerpilot.core.data import db
+from jobquill.core.data import db
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
-    from careerpilot.app import server
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    from jobquill.app import server
     return TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
 
 
@@ -16,8 +16,8 @@ def test_the_apply_page_asks_how_many_applied_once_a_day(client, monkeypatch):
     """One request when the Apply page opens a LinkedIn posting; the answer is kept for a day; LinkedIn switched off in
     Settings: never asked."""
     from datetime import date
-    from careerpilot.core import sources
-    from careerpilot.core import profile as pf
+    from jobquill.core import sources
+    from jobquill.core import profile as pf
     asked = []
     monkeypatch.setattr(sources, "applicants",
                         lambda url: asked.append(url) or {"n": 39, "text": "39 applicants", "at": date.today().isoformat()})

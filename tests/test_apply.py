@@ -1,4 +1,4 @@
-from careerpilot.core import apply, check, posting, render
+from jobquill.core import apply, check, posting, render
 
 P = {"summaries": {"main": "S"}, "education": [], "languages": [], "skills": {"A": ["x"], "B": ["y", "z"]},
      "experience": [{"id": "e1", "org": "C", "title": "R", "bullets": [{"id": "b1", "text": "one"}, {"id": "b2", "text": "two"},
@@ -44,7 +44,7 @@ def test_posting_cannot_leave_its_fence():
 def test_placeholders_are_filled_once():
     """A value that contains another placeholder stays as it is: a CV line "{posting}" must not pull the posting in
     outside its <untrusted> fence, and a posting can't pull in the person's own fields."""
-    from careerpilot.core import prompts
+    from jobquill.core import prompts
     out = prompts.build("tailor", factsheet="my line {posting}", posting="ad text {factsheet} {note}", note="NOTE")
     assert "my line {posting}" in out and "ad text {factsheet} {note}" in out and out.count("ad text") == 1
 
@@ -93,7 +93,7 @@ def test_every_design_renders_both_examples():
     from pypdf import PdfReader
     import io
     for person, country in [("alex-engineer-de", "DE"), ("sam-nurse-uk", "GB")]:
-        cv = YAML(typ="safe").load(Path("careerpilot/examples") / person / "master_cv.yaml")
+        cv = YAML(typ="safe").load(Path("jobquill/examples") / person / "master_cv.yaml")
         for d in render.designs():
             text = "".join(p.extract_text() for p in PdfReader(io.BytesIO(render.cv_pdf(cv, d, "en", country))).pages)
             assert cv["basics"]["name"] in text and cv["experience"][0]["title"].split(",")[0] in text, (person, d)
@@ -103,7 +103,7 @@ def test_every_design_renders_both_examples():
 
 def test_no_review_keeps_the_letter(tmp_path, monkeypatch):
     """Review depth 'none' (just show me the PDFs) hides every card; the letter must still be the full draft."""
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     letter = {"subject": "S", "salutation": "Dear team,", "recipient": [], "paragraphs": ["One.", "Two."]}
     prop = {"items": [], "letter": [dict(id="p1", old="", new="One.", flag=False), dict(id="p2", old="", new="Two.", flag=False)],
             "letter_meta": letter, "language": "en"}
@@ -116,7 +116,7 @@ def test_no_review_keeps_the_letter(tmp_path, monkeypatch):
 
 def test_change_text_after_the_pdfs(tmp_path, monkeypatch):
     """Documents step -> Change text: every shown line is a card; only edited lines change, nothing else is stored."""
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     monkeypatch.setattr(apply.posting, "get", lambda key: {"type": "full_time", "title": "T", "description": "d"})
     monkeypatch.setattr(apply.pf, "profile", lambda: type("Prof", (), {"model_dump": lambda self: P})())
     monkeypatch.setattr(apply, "build", lambda key: {"stage": "ready"})
@@ -136,7 +136,7 @@ def test_change_text_after_the_pdfs(tmp_path, monkeypatch):
 
 def test_ai_box_on_the_documents(tmp_path, monkeypatch):
     """Documents step -> AI box: the request and the failed checks go to one run; its edits of shown lines are applied."""
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     monkeypatch.setattr(apply.posting, "get", lambda key: {"type": "full_time", "title": "T", "description": "d"})
     monkeypatch.setattr(apply.pf, "profile", lambda: type("Prof", (), {"model_dump": lambda self: P})())
     monkeypatch.setattr(apply, "build", lambda key: {"stage": "ready"})
@@ -176,7 +176,7 @@ def test_long_letter_still_fits_one_page(monkeypatch):
 
 def test_draft_is_one_tailor_run_that_also_reads_the_job(tmp_path, monkeypatch):
     """No separate fit check: the tailor run returns the job details, stored as fit.json; prompts have no unfilled parts."""
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     monkeypatch.setattr(apply.posting, "get", lambda key: {"score": 4, "description": "posting"})
     monkeypatch.setattr(apply.pf, "profile", lambda: type("Prof", (), {"model_dump": lambda self: P})())
     monkeypatch.setattr(apply, "prefs", lambda: apply.pf.Preferences())
@@ -207,8 +207,8 @@ def test_draft_is_one_tailor_run_that_also_reads_the_job(tmp_path, monkeypatch):
 def test_start_over_with_a_wish_and_another_language(tmp_path, monkeypatch):
     """Start over: the draft is thrown away (ledger kept), the job is new again; the next draft takes the person's note and
     language. The Documents AI box asked for another language answers 'restart' instead of editing."""
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
-    from careerpilot.core.data import db
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    from jobquill.core.data import db
     with db() as con:
         con.execute("insert into jobs (key, status, title) values ('k', 'applying', 'T')")
         con.execute("insert into needs (job_key) values ('k')")
@@ -256,8 +256,8 @@ def test_start_over_with_a_wish_and_another_language(tmp_path, monkeypatch):
 def test_every_ai_call_lands_in_the_ledger(tmp_path, monkeypatch):
     """A real CLI call (here: python printing JSON) is recorded with its step and job; a failed one with its error."""
     import sys
-    from careerpilot.core import ai
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    from jobquill.core import ai
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
 
     class Fake(ai.Agent):
         name, label, code = "fake", "Fake", ""

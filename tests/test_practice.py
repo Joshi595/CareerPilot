@@ -5,9 +5,9 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from careerpilot.core import ai, practice
-from careerpilot.core import profile as pf
-from careerpilot.core.data import db
+from jobquill.core import ai, practice
+from jobquill.core import profile as pf
+from jobquill.core.data import db
 
 PROFILE = {"basics": {"name": "Alex Example"}, "experience": [
     {"id": "e1", "title": "Backend Developer", "org": "Example Logistics", "start": "2021-01", "end": "present",
@@ -17,7 +17,7 @@ PROFILE = {"basics": {"name": "Alex Example"}, "experience": [
 
 @pytest.fixture
 def app(tmp_path, monkeypatch):
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     pf.write("profile", PROFILE)
     folder = tmp_path / "applications" / "a1"
     folder.mkdir(parents=True)
@@ -69,7 +69,7 @@ def test_the_drill_asks_about_what_was_sent(app, monkeypatch):
 
 
 def test_the_prep_page_gets_its_meeting_link_and_time(app):
-    from careerpilot.app import server
+    from jobquill.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     r = c.get("/api/practice/1").json()
     assert r["prep"]["link"] == "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc"

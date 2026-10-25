@@ -1,6 +1,6 @@
 [project]
-name = "careerpilot"
-version = "0.12.4"
+name = "jobquill"
+version = "0.13.0"
 description = "Find jobs and tailor your CV and cover letter with the AI plan you already have. Runs on your own computer."
 readme = "README.md"
 license = "MIT"
@@ -24,10 +24,10 @@ dependencies = [
 ]
 
 [project.scripts]
-careerpilot = "careerpilot.app.server:main"
+jobquill = "jobquill.app.server:main"
 
 [project.gui-scripts]
-careerpilot-app = "careerpilot.app.server:main"
+jobquill-app = "jobquill.app.server:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "httpx2"]

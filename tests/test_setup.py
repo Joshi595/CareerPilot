@@ -5,13 +5,13 @@ import zipfile
 import pytest
 from fastapi.testclient import TestClient
 
-from careerpilot.core import cvimport
-from careerpilot.core import profile as pf
+from jobquill.core import cvimport
+from jobquill.core import profile as pf
 
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     return tmp_path
 
 
@@ -66,7 +66,7 @@ def test_json_resume_round_trip():
 
 
 def test_setup_api(home):
-    from careerpilot.app import server
+    from jobquill.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     st = c.get("/api/state").json()
     assert st["preferences"]["setup_done"] is False and st["countries"]["DE"] == "Germany"
@@ -100,8 +100,8 @@ def test_ai_update_never_drops_existing_content():
 
 
 def test_applications_include_form_answers(home):
-    from careerpilot.app import server
-    from careerpilot.core.data import db
+    from jobquill.app import server
+    from jobquill.core.data import db
     (home / "applications" / "2026-10-01_Acme_Dev").mkdir(parents=True)
     (home / "applications" / "2026-10-01_Acme_Dev" / "form_answers.md").write_text("# Form answers\n- Salary: 60000\n" + "x" * 5000,
                                                                                     encoding="utf-8")
@@ -115,7 +115,7 @@ def test_applications_include_form_answers(home):
 
 
 def client():
-    from careerpilot.app import server
+    from jobquill.app import server
     return TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
 
 
@@ -148,7 +148,7 @@ def test_suggested_answers_studies_in_progress():
 
 
 def test_patch_preferences_merges_and_keeps_server_fields(home, monkeypatch):
-    from careerpilot.app import settings_api
+    from jobquill.app import settings_api
     calls = []
     monkeypatch.setattr(settings_api.scheduler, "disable", lambda job=None: calls.append(f"off {job}"))
     monkeypatch.setattr(settings_api.scheduler, "ensure", lambda search_time=None, mail_on=None: calls.append(search_time))

@@ -4,9 +4,9 @@ import pytest
 from pypdf import PdfReader
 from ruamel.yaml import YAML
 
-from careerpilot.core import render, secrets
+from jobquill.core import render, secrets
 
-CV = YAML(typ="safe").load(open("careerpilot/examples/sam-nurse-uk/master_cv.yaml", encoding="utf-8"))
+CV = YAML(typ="safe").load(open("jobquill/examples/sam-nurse-uk/master_cv.yaml", encoding="utf-8"))
 
 
 def text(pdf):
@@ -15,7 +15,7 @@ def text(pdf):
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     return tmp_path
 
 
@@ -65,7 +65,7 @@ def test_every_page_as_svg():
 
 def test_thumb_key_follows_what_it_shows(home):
     import os
-    from careerpilot.core import profile as pf
+    from jobquill.core import profile as pf
     pf.write("preferences", {"targets": [{"code": "GB"}]})
     k = render.thumb_key("classic")
     pf.write("preferences", {"targets": [{"code": "DE"}]})
@@ -88,9 +88,9 @@ def test_thumb_key_follows_what_it_shows(home):
 def test_thumb_and_preview_api(home):
     import shutil
     from fastapi.testclient import TestClient
-    from careerpilot.app import server
-    from careerpilot.core import profile as pf
-    shutil.copy("careerpilot/examples/sam-nurse-uk/master_cv.yaml", pf.folder() / "master_cv.yaml")
+    from jobquill.app import server
+    from jobquill.core import profile as pf
+    shutil.copy("jobquill/examples/sam-nurse-uk/master_cv.yaml", pf.folder() / "master_cv.yaml")
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     key = c.get("/api/designs").json()["keys"]["classic"]
     r = c.get(f"/api/designs/classic/thumb.png?v={key}")

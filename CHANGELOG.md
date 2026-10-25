@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0 (2026-10-24)
+
+- **CareerPilot is now JobQuill.** Thousands of projects on GitHub share the old name. The command is now `jobquill`,
+  and the data folder and environment variables are named after JobQuill too (`JOBQUILL_HOME`).
+- Updating from CareerPilot: run the installer again (the update button of 0.12 can't install the renamed app). It
+  removes the old copy, and the first start moves your data folder, saved passwords and documents over. The old
+  scheduled tasks are replaced by new ones.
+
 ## 0.12.4 (2026-10-24)
 
 - Ready to be public: test examples use fictional employers, and the docs say exactly what a failed document check

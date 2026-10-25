@@ -6,13 +6,13 @@ import keyring
 import pytest
 from fastapi.testclient import TestClient
 
-from careerpilot.core import profile as pf
-from careerpilot.core.data import db
+from jobquill.core import profile as pf
+from jobquill.core.data import db
 
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     store = {}
     monkeypatch.setattr(keyring, "get_password", lambda s, n: store.get((s, n)))
     monkeypatch.setattr(keyring, "set_password", lambda s, n, v: store.__setitem__((s, n), v))
@@ -21,7 +21,7 @@ def home(tmp_path, monkeypatch):
 
 
 def client():
-    from careerpilot.app import server
+    from jobquill.app import server
     return TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
 
 
@@ -62,7 +62,7 @@ def test_a_folder_made_private_is_this_users_alone(tmp_path):
     import os
     import subprocess
     import sys
-    from careerpilot.core import system
+    from jobquill.core import system
     repo = tmp_path / "repo"
     repo.mkdir()
     if sys.platform == "win32":  # like D:\ : every signed-in account may change what's below (S-1-5-11 = Authenticated Users)
@@ -84,13 +84,13 @@ def test_update_installs_the_newest_release_never_main(monkeypatch):
     """An update installs a released version (a tag), so one bad push to main never reaches anyone. No tag readable:
     nothing is installed."""
     import sys
-    from careerpilot.core import sources, system
+    from jobquill.core import sources, system
     ran = []
     monkeypatch.setattr(system.shutil, "which", lambda name: sys.executable)  # "uv" is there
     monkeypatch.setattr(system.subprocess, "run", lambda cmd, **k: ran.append(cmd) or type("R", (), {"stdout": "ok", "stderr": ""})())
     monkeypatch.setattr(sources, "get_json", lambda url, **k: [{"name": "v0.9.0"}, {"name": "v0.12.0"}, {"name": "v0.10.1"}, {"name": "nightly"}])
     system.update()
-    assert ran[-1][-1] == "careerpilot @ https://github.com/Joshi595/CareerPilot/archive/refs/tags/v0.12.0.zip"
+    assert ran[-1][-1] == "jobquill @ https://github.com/Joshi595/JobQuill/archive/refs/tags/v0.12.0.zip"
     ran.clear()
 
     def offline(url, **k):
@@ -102,7 +102,7 @@ def test_update_installs_the_newest_release_never_main(monkeypatch):
 def test_documents_with_secret_shaped_text_are_blocked(home):
     """An AI with tools (Codex, Antigravity) tricked by a posting could copy a key from this computer into a CV line:
     the PDFs are where it would leave, so the checks stop them there."""
-    from careerpilot.core import check
+    from jobquill.core import check
     plain = "Built a shipment tracking service in Python, see linkedin.com/in/alexandra-example-engineer-berlin."
     assert not check.check(plain)["fails"]
     head = "-----BEGIN OPENSSH " + "PRIVATE KEY-----"  # split: the release's own secret scan reads this file too
@@ -116,14 +116,14 @@ def test_ai_answer_runs_start_in_an_empty_folder(monkeypatch, tmp_path):
     """An answer run never starts inside the app's or the person's folders, so relative paths find nothing."""
     import os
     import subprocess
-    from careerpilot.core import ai
+    from jobquill.core import ai
     seen = {}
 
     def fake_run(args, **kw):
         seen["cwd"] = kw.get("cwd")
         return subprocess.CompletedProcess(args, 0, stdout='{"structured_output": {"ok": true}}', stderr="")
     monkeypatch.setattr(ai.subprocess, "run", fake_run)
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     agent = ai.Antigravity()
     monkeypatch.setattr(agent, "path", lambda: "agy")
     assert agent.run("p", {"type": "object"}) == {"ok": True}
@@ -132,7 +132,7 @@ def test_ai_answer_runs_start_in_an_empty_folder(monkeypatch, tmp_path):
 
 def test_a_stepstone_answer_from_a_private_address_is_dropped(monkeypatch):
     from curl_cffi import requests as browser
-    from careerpilot.core import sources
+    from jobquill.core import sources
 
     class Answer:
         status_code, text, url = 200, "the app's own data", "http://127.0.0.1:8790/api/health"
@@ -147,10 +147,10 @@ def test_no_password_store_reads_as_nothing_saved(tmp_path, monkeypatch):
     import keyring
     from fastapi.testclient import TestClient
     from keyring.errors import NoKeyringError
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     monkeypatch.setattr(keyring, "get_password", lambda *a: (_ for _ in ()).throw(NoKeyringError("no backend")))
-    from careerpilot.app import server
-    from careerpilot.core import secrets
+    from jobquill.app import server
+    from jobquill.core import secrets
     assert secrets.get("email_password") == "" and secrets.names() == []
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     assert c.get("/api/mail/items").status_code == 200

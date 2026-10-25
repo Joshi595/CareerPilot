@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from careerpilot.core import score, search, sources
-from careerpilot.countries.de import sources as de
+from jobquill.core import score, search, sources
+from jobquill.countries.de import sources as de
 
 PREFS = {"titles": ["Staff Nurse"], "keywords": {"en": ["Registered Nurse"], "de": ["Pflegefachkraft"]}, "job_types": ["full_time"],
          "places": ["Leeds"], "radius_km": 30, "remote": "onsite"}
@@ -14,7 +14,7 @@ PROFILE = {"skills": {"Clinical": ["Patient assessment", "NEWS2"]}, "languages":
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("CAREERPILOT_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
     return tmp_path
 
 
@@ -64,7 +64,7 @@ def test_experience_years_overlap():
 
 def test_store_keeps_junk_and_expires(home):
     from datetime import date, timedelta
-    from careerpilot.core.data import db
+    from jobquill.core.data import db
     m, gone = score.Matcher(PREFS, PROFILE), (date.today() - timedelta(days=5)).strftime("%d/%m/%Y")
     junk = sources.job("Software Engineer", "X", "London", "https://x/1", "indeed", desc="Python " * 80)
     old = sources.job("Staff Nurse", "NHS", "Leeds", "https://x/2", "indeed",
@@ -76,8 +76,8 @@ def test_store_keeps_junk_and_expires(home):
 
 
 def test_board_reason_link_and_expired_migration(home):
-    from careerpilot.app import jobs_api
-    from careerpilot.core.data import db
+    from jobquill.app import jobs_api
+    from jobquill.core.data import db
     rows = [("a", "filtered", "[weak] low · ⚠ far away", {}), ("b", "filtered", "[type] internship", {}),
             ("c", "filtered", "[excluded] hidden", {}), ("d", "filtered", "[junk] x", {}), ("e", "filtered", "imported", {}),
             ("f", "new", "good match", {"site_url": "https://acme.com/jobs/1"}), ("g", "filtered", "[expired] late", {})]
@@ -95,8 +95,8 @@ def test_board_reason_link_and_expired_migration(home):
 
 def test_kept_rows_are_not_refiltered(home, monkeypatch):
     from fastapi.testclient import TestClient
-    from careerpilot.app import server
-    from careerpilot.core.data import db
+    from jobquill.app import server
+    from jobquill.core.data import db
     with db() as con:
         con.executemany("insert into jobs(key, title, company, location, url, status, first_seen, data) values (?, 'Software Engineer',"
                         " 'X', 'London', ?, 'filtered', '2020-01-01', '{}')", [("k", "https://x/k"), ("n", "https://x/n")])
@@ -123,8 +123,8 @@ ATS_URLS = {"https://boards.greenhouse.io/acme/jobs/1": ("greenhouse", "acme"),
 
 
 def test_sites_learn_every_ats_form(home, monkeypatch):
-    from careerpilot.core import sites
-    from careerpilot.core.data import db
+    from jobquill.core import sites
+    from jobquill.core.data import db
     monkeypatch.setattr(sources, "http", lambda *a, **k: pytest.fail("a posting link must not be fetched"))
     for url, want in ATS_URLS.items():
         assert sites.learn(url, "Acme", "posting") == want
@@ -135,7 +135,7 @@ def test_sites_learn_every_ats_form(home, monkeypatch):
 
 
 def test_sites_successfactors_and_own_page(home, monkeypatch):
-    from careerpilot.core import sites
+    from jobquill.core import sites
     jobs = "".join(f'<a href="/jobs/{i}">{t} (m/w/d)</a>' for i, t in enumerate(["Data Engineer", "Software Engineer", "Test Engineer"]))
     pages = {"https://jobs.acme.com/job/Munich-Data-Engineer/123": '<script src="https://rmkcdn.successfactors.com/x.js"></script>',
              "https://acme.example/careers/jobs/42": "<p>Apply</p>", "https://acme.example/careers/jobs/": jobs,
@@ -149,8 +149,8 @@ def test_sites_successfactors_and_own_page(home, monkeypatch):
 
 
 def test_sites_probe_needs_a_title_match(home, monkeypatch):
-    from careerpilot.core import sites
-    from careerpilot.core.data import db
+    from jobquill.core import sites
+    from jobquill.core.data import db
     with db() as con:
         con.executemany("insert into jobs(key, title, company, url, source, status, score) values (?,?,?,?, 'indeed', 'new', 50)",
                         [("a", "Data Engineer (m/w/d)", "Acme GmbH", "https://x/a"), ("b", "Staff Nurse", "Beta Care AG", "https://x/b")])
@@ -175,8 +175,8 @@ def test_sites_probe_needs_a_title_match(home, monkeypatch):
 
 def test_sites_pause_after_3_fails_retry_after_7_days(home):
     from datetime import date, timedelta
-    from careerpilot.core import sites
-    from careerpilot.core.data import db
+    from jobquill.core import sites
+    from jobquill.core.data import db
     sites.add("greenhouse", "acme", "Acme", "posting")
     sites.add("lever", "beta", "Beta", "posting")
     for _ in range(3):
@@ -197,7 +197,7 @@ def test_sites_pause_after_3_fails_retry_after_7_days(home):
 
 
 def test_site_url_same_key_earlier_in_run_and_twin(home):
-    from careerpilot.core.data import db
+    from jobquill.core.data import db
     m = score.Matcher(PREFS, PROFILE)
     site = lambda title, company, n: sources.job(title, company, "Leeds", f"https://acme.career/{n}", "career site")
     search.store([sources.job("Staff Nurse", "Example NHS Trust GmbH", "Leeds", "https://www.linkedin.com/jobs/view/1", "linkedin")], m)
@@ -216,9 +216,9 @@ def test_site_url_same_key_earlier_in_run_and_twin(home):
 
 
 def test_sites_seed_runs_once_and_backfills(home):
-    from careerpilot.core import profile as pf
-    from careerpilot.core import sites
-    from careerpilot.core.data import db
+    from jobquill.core import profile as pf
+    from jobquill.core import sites
+    from jobquill.core.data import db
     pf.write("companies", [{"name": "Mercedes-Benz", "kind": "beesite", "ref": "https://mb.app.beesite.de"}])
     with db() as con:
         con.executemany("insert into jobs(key, title, company, url, why, data) values (?, 't', ?, ?, ?, ?)",
@@ -239,7 +239,7 @@ def test_sites_seed_runs_once_and_backfills(home):
 
 def test_page_with_link_pattern_keeps_postings_sharing_a_title(monkeypatch):
     """A "<url>#<regex>" page ref keeps every link whose href matches, also when titles repeat; navigation is dropped."""
-    from careerpilot.core import sources
+    from jobquill.core import sources
     body = ('<a href="/jobs/1">Wissenschaftliche*r Mitarbeiter*in (m/w/d)</a><a href="/jobs/2">Wissenschaftliche*r Mitarbeiter*in (m/w/d)</a>'
             '<a href="/forschung">Wissenschaftliche Weiterbildung und Forschung</a>')
     monkeypatch.setattr(sources, "http", lambda url: (200, body, "https://uni.example/list"))
@@ -249,7 +249,7 @@ def test_page_with_link_pattern_keeps_postings_sharing_a_title(monkeypatch):
 
 def test_page_card_links_and_plain_fragments(monkeypatch):
     """Card links give title, employer and place; a normal #fragment in a career-page link is not a filter."""
-    from careerpilot.core import sources
+    from jobquill.core import sources
     card = ('<a href="/berlin/data-engineer-261021-1"><div><p>Data Engineer (m/w/d)</p></div>'
             '<p>Acme GmbH<span>·</span>Berlin, Deutschland</p><span>vor 2 Stunden</span></a>')
     monkeypatch.setattr(sources, "http", lambda url: (200, card + '<a href="/jobs/9">Software Engineer (m/w/d)</a>', "https://x.example/b/"))
@@ -260,7 +260,7 @@ def test_page_card_links_and_plain_fragments(monkeypatch):
 
 
 def test_ledger_counts_error_answers_as_failed(tmp_path):
-    from careerpilot.core import ai
+    from jobquill.core import ai
     ai.record("Tailor", "k", ai.Claude(), '{"is_error": true, "result": "overloaded", "modelUsage": {}}', 1.0)
     ai.record("Review", "k", ai.Claude(), '{"modelUsage": {"m": {"inputTokens": 5, "outputTokens": 2, "costUSD": 0.01}}}', 1.0)
     rows = ai.calls("k")
@@ -269,7 +269,7 @@ def test_ledger_counts_error_answers_as_failed(tmp_path):
 
 def test_review_runs_on_the_check_model():
     """CHECK_STEPS names answer models by class: renaming Review must not quietly move it to the expensive model."""
-    from careerpilot.core import ai, apply
+    from jobquill.core import ai, apply
     assert apply.Review.__name__ in ai.CHECK_STEPS
     c = ai.Claude()
     c.level = "standard"
@@ -279,7 +279,7 @@ def test_review_runs_on_the_check_model():
 def test_browser_only_sites_connect_like_chrome(monkeypatch):
     """StepStone stalls any non-browser connection: its pages go through curl_cffi as Chrome, everything else stays urllib."""
     import curl_cffi.requests
-    from careerpilot.core import sources
+    from jobquill.core import sources
     calls = []
     monkeypatch.setattr(curl_cffi.requests, "request", lambda method, url, **kw: calls.append((method, url, kw["impersonate"])) or
                         type("R", (), {"status_code": 200, "text": "ok", "url": url})())
@@ -292,7 +292,7 @@ def test_only_web_links_and_only_the_internet(monkeypatch):
     """Links come from other people's pages: a javascript: link is never stored; file: links, this computer and the
     local network are never fetched."""
     import socket
-    from careerpilot.core import sources
+    from jobquill.core import sources
     assert sources.job("Nurse", "Acme", "", "javascript:alert(1)", "career site")["url"] == ""
     assert sources.job("Nurse", "Acme", "", "https://acme.example/jobs/1", "career site")["url"] == "https://acme.example/jobs/1"
     ips = {"acme.example": "93.184.215.14", "router.example": "192.168.1.1"}
@@ -372,7 +372,7 @@ def test_several_places_search_the_whole_country_and_the_radius_is_used(monkeypa
 
 def _filtered(key, title, today=True):
     from datetime import date, timedelta
-    from careerpilot.core.data import db
+    from jobquill.core.data import db
     with db() as con:
         con.execute("insert into jobs(key, title, company, location, country, url, source, status, why, first_seen, data) "
                     "values (?,?,?,?,?,?,?,?,?,?,?)", (key, title, "Klinikum Nord", "Leeds", "GB", f"https://example.org/{key}", "career site",
@@ -399,7 +399,7 @@ def test_applicant_numbers_from_linkedins_public_page(monkeypatch):
 
 
 def test_the_best_new_matches_get_their_applicant_numbers(home, monkeypatch):
-    from careerpilot.core.data import db
+    from jobquill.core.data import db
     with db() as con:
         for i, (score_, url) in enumerate([(80, "https://www.linkedin.com/jobs/view/111"), (75, "https://jobs.example/2"),
                                            (10, "https://www.linkedin.com/jobs/view/333")]):
@@ -429,7 +429,7 @@ def test_a_board_that_blocks_us_says_so(monkeypatch):
 def test_a_posting_judged_on_its_title_alone_is_read_and_judged_again(home, monkeypatch):
     """15,119 postings were filtered on their title alone and never read again. The newest are read now; one whose
     text fits goes to the Board, saying why."""
-    from careerpilot.core.data import db
+    from jobquill.core.data import db
     profile = {**PROFILE, "skills": {"Clinical": ["patient assessment", "NEWS2", "wound care", "medication management", "triage"]}}
     _filtered("k1", "Pflegekraft Station 3")
     _filtered("old", "Pflegekraft Station 9", today=False)  # weeks old: not read again
@@ -444,9 +444,9 @@ def test_a_posting_judged_on_its_title_alone_is_read_and_judged_again(home, monk
 
 
 def test_the_ai_takes_a_second_look_at_titles_filtered_today(home, monkeypatch):
-    from careerpilot.core import ai
-    from careerpilot.core import profile as pf
-    from careerpilot.core.data import db
+    from jobquill.core import ai
+    from jobquill.core import profile as pf
+    from jobquill.core.data import db
     _filtered("k_perc", "Perception Engineer (m/w/d)")
     _filtered("k_bake", "Bäcker (m/w/d)")
     asked = []
@@ -485,8 +485,8 @@ def test_arbeitsagentur_offer_types_and_thesis(monkeypatch):
 
 
 def test_rescore_follows_new_job_types(home):
-    from careerpilot.core import profile as pf
-    from careerpilot.core.data import db
+    from jobquill.core import profile as pf
+    from jobquill.core.data import db
     pf.write("preferences", {**PREFS, "job_types": ["full_time"]})
     m = score.Matcher(PREFS, PROFILE)
     search.store([sources.job("Registered Nurse", "NHS", "Leeds", "https://a/1", "indeed"),
@@ -505,8 +505,8 @@ def test_rescore_follows_new_job_types(home):
 
 def test_empty_site_is_noticed_and_looked_for_again(home):
     from datetime import date, timedelta
-    from careerpilot.core import sites
-    from careerpilot.core.data import db
+    from jobquill.core import sites
+    from jobquill.core.data import db
     sites.add("greenhouse", "acme", "Acme", "posting")
     sites.add("lever", "never", "Never", "posting")
     sites.record("greenhouse", "acme", 5)

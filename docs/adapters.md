@@ -1,6 +1,6 @@
 # AI adapters
 
-CareerPilot runs the person's own AI through that vendor's command-line program (`careerpilot/core/ai.py`).
+JobQuill runs the person's own AI through that vendor's command-line program (`jobquill/core/ai.py`).
 The runs:
 
 - **Answer runs** (almost everything): the whole prompt on stdin, no tools, JSON that matches a schema
