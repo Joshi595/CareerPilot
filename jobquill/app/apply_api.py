@@ -219,11 +219,14 @@ async def update_application(app_id: int, request: Request):
     with db() as con:
         if fields:
             con.execute(f"update applications set {', '.join(f'{k}=?' for k in fields)} where id=?", [*fields.values(), app_id])
-        if "interview_at" in b:  # the next interview, "YYYY-MM-DDTHH:MM" or "": the Upcoming list and the reminders read it
-            if not re.fullmatch(r"(\d{4}-\d\d-\d\dT\d\d:\d\d)?", b["interview_at"] or ""):
+        if "interview_at" in b or fields.get("status"):
+            if not re.fullmatch(r"(\d{4}-\d\d-\d\dT\d\d:\d\d)?", b.get("interview_at") or ""):
                 raise HTTPException(422, "interview_at must be YYYY-MM-DDTHH:MM")
             data = json.loads((con.execute("select data from applications where id=?", (app_id,)).fetchone() or {"data": "{}"})["data"] or "{}")
-            data["interview_at"] = b["interview_at"] or ""
+            if "interview_at" in b:  # the next interview, "YYYY-MM-DDTHH:MM" or "": the Upcoming list and the reminders read it
+                data["interview_at"] = b["interview_at"] or ""
+            if fields.get("status"):  # a status set by hand has no reply to date it: Closed is sorted by this day
+                data["status_at"] = date.today().isoformat()
             con.execute("update applications set data=? where id=?", (json.dumps(data), app_id))
         row = con.execute("select folder from applications where id=?", (app_id,)).fetchone()
     if row and row["folder"] and fields.get("status") not in (None, "pending"):  # sent (or closed): the current folder is done

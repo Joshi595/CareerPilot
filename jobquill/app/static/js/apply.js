@@ -3,8 +3,9 @@ const fileUrl = path => `/api/file?path=${encodeURIComponent(path)}&t=${TOKEN}`;
 // Tokens per AI call (the ai_calls ledger), shared with applications.html and Settings › AI.
 window.stepName = s => { const k = `apply.u.${s}`, v = t(k); return v === k ? s : v; };
 window.kTok = n => n == null ? "–" : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
-window.usageTotal = rows => rows.reduce((a, u) => ({ ...a, input: a.input + (u.input || 0), cached: a.cached + (u.cached || 0),
-  output: a.output + (u.output || 0), cost_usd: a.cost_usd + (u.cost_usd || 0) }), { step: "total", total: true, input: 0, cached: 0, output: 0, cost_usd: 0 });
+const TOKS = ["input", "fresh", "cache_write", "cached", "output", "thinking", "cost_usd"];
+window.usageTotal = rows => rows.reduce((a, u) => ({ ...a, ...Object.fromEntries(TOKS.map(k => [k, a[k] + (u[k] || 0)])) }),
+  { step: "total", total: true, ...Object.fromEntries(TOKS.map(k => [k, 0])) });
 // What changed in a line, word by word: [{t, op: "" | "add" | "del", b}] (longest common subsequence of the words).
 // **bold** marks are read (b), never shown. Shown with x-text spans: no HTML from a line ever reaches the page.
 window.wordDiff = (a = "", b = "") => {

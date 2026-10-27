@@ -40,7 +40,7 @@ HELP = {  # provider -> how to get an app password (or switch on IMAP)
     "fastmail": "https://www.fastmail.help/hc/en-us/articles/360058752854-App-passwords"}
 OPEN = ["applied", "assessment", "interview", "offer"]
 SKIP = re.compile(r"alert|jobnotification|jobs-listings|newsletter|jobagent|marketing|digest|recommend|new jobs similar|"
-                  r"\bhiring\b(?! team)|\bapply (?:now )?to\b|registration|registrierung|password|passwort|kennwort|verif|verfiz|"
+                  r"\bhiring\b(?![ -]team)|\bapply (?:now )?to\b|registration|registrierung|password|passwort|kennwort|verif|verfiz|"
                   r"benutzerkonto|zugangsdaten|career portal|karriereportal|candidate account|user account|ihr zugang|"
                   r"career opportunities|job opportunities|jobquill", re.I)  # own alerts and test mails
 SIGNALS = [  # first hit wins; specific phrases only: receipts say "unfortunately" / "interview" too
@@ -50,7 +50,9 @@ SIGNALS = [  # first hit wins; specific phrases only: receipts say "unfortunatel
                  r"absagen|eine absage|anderweitig|nicht (?:weiter |mehr )?berücksichtig|anderen? (?:bewerber|kandidat)|"
                  r"nicht weiter verfolg|nicht in die engere|für eine?n? andere|nicht für (?:sie|dich) entschieden|"
                  r"andere bewerbungen vor|(?:stärker|besser) (?:entsprechen|passen)|nicht berücksichtigen|keine zusage|"
-                 r"unsuccessful|not to proceed|will not be (?:moving|proceeding)"),
+                 r"unsuccessful|not to proceed|will not be (?:moving|proceeding)|"
+                 r"(?:won't|will not|cannot|can't|unable to|not (?:be )?able to) (?:be able to )?invite you|nicht (?:\w+ ){0,6}einladen|"
+                 r"nicht (?:\w+ ){0,5}fortfahren|keine stelle (?:\w+ ){0,4}anbieten|(?:leider|bereits|inzwischen|schon) besetzt"),
     ("offer", r"job offer(?!s)|offer letter|offer of employment|offer you (?:the|a) (?:position|role|job)|vertragsangebot|"
               r"arbeitsvertrag|ihnen die stelle anbieten|anbieten zu können"),
     ("interview", r"invit(?:e|ing) you (?:to|for) (?:an? |the )?(?:\w+ )?(?:interview|call|conversation|meeting|chat)|"
@@ -169,7 +171,7 @@ REF = re.compile(r"(?<![\w.:/])(?!(?:19|20)\d\d\b)[a-z]{0,3}\d{4,}[a-z0-9]*(?![\
 # ... named as one: "Kennziffer: 5706", "Job-ID 12345", "Ref. 2026-117"
 LABELED = re.compile(r"(?:\bid|kennziffer|\bref(?:erenz|erence)?|job-?\s?nr|stellen-?\s?(?:nr|nummer)|position|requisition|\breq|"
                      r"ausschreibungs?-?\s?(?:nr|nummer)|job number|vacancy)\b\W{0,4}([a-z]{0,3}\d{4,}[a-z0-9]*)")
-ABOUT = re.compile(r"bewerbung|bewerber|application|applying|applied|candida|interview|gespräch|vorstellung|recruit|hiring team")
+ABOUT = re.compile(r"bewerbung|bewerber|application|applying|applied|candida|interview|gespräch|vorstellung|recruit|hiring[ -]team")
 
 
 def company_key(name):
@@ -619,8 +621,8 @@ def _one(m: dict, rows: list[dict], address: str, out: dict):
     from jobquill.core import alerts
     signal = classify(m["text"])
     row, cands = link(m, rows, signal)
-    if SKIP.search(m["head"]) and signal not in IMPORTANT:  # alerts, newsletters, account housekeeping
-        return
+    if SKIP.search(m["head"]) and signal not in IMPORTANT + ("rejected",):  # alerts, newsletters, account housekeeping;
+        return  # a rejection never: its job title can hold a skip word ("Dose Verification", "Marketing")
     if not row and not cands and not ABOUT.search(m["head"]) and signal not in IMPORTANT:
         return  # not about an application
     if signal == "acknowledgement" and person(m["frm"]):
@@ -811,6 +813,8 @@ def verification_links(domain: str, minutes: int = 60) -> list[str]:
         urls = {html.unescape(u) for u in re.findall(r"https?://[^\s\"'<>]+", part.get_content() if part else "")}
         out += [u for u in urls if (urllib.parse.urlsplit(u).hostname or "").endswith(base)]
     return out
+
+
 
 
 def send(to: str, subject: str, body: str, files: list[Path] = ()) -> str:

@@ -338,3 +338,43 @@ def test_one_draft_at_a_time_and_stop_on_blocker(monkeypatch):
     assert apply.draft("k", depth="none", stop_on_blocker=True)["stage"] == "blocked" and calls == ["Tailor"]
     apply.set_stage("k", "drafting")  # left behind by a restart: nobody is writing it
     assert apply.state("k")["stage"] == "new"
+
+
+def test_a_letter_must_fill_its_one_page(tmp_path):
+    from jobquill.core import check, render
+    basics = {"name": "Sam Sample", "email": "sam@example.com", "phone": "+44 7700 900000", "location": "Leeds"}
+    para = lambda n: " ".join(["Careful handover notes keep every patient safe on a busy ward."] * n)
+
+    def letter(sentences, paragraphs=5):
+        path = tmp_path / f"letter{sentences}.pdf"
+        path.write_bytes(render.letter_pdf({"recipient": ["Example Trust"], "subject": "Staff Nurse", "salutation": "Dear Hiring Team,",
+                                            "paragraphs": [para(sentences)] * paragraphs}, basics, "classic", "en", "GB"))
+        return check.check("", pdf=path, max_pages=1, fill=0.85)["fails"]
+    short = letter(2)
+    assert any("fills only" in f and "add about" in f for f in short), short
+    assert not any("fills only" in f for f in letter(9)), letter(9)  # about 500 words: a full page
+    assert any("more than 1 page" in f for f in letter(26))  # about 1,400 words: two pages
+
+
+def test_projects_are_reordered_for_a_clean_page_break(monkeypatch):
+    cv, ids = {"projects": [{"id": "a"}, {"id": "b"}, {"id": "c"}]}, lambda c: ",".join(p["id"] for p in c["projects"]).encode()
+    monkeypatch.setattr(apply, "placement", lambda pdf, projects: (0 if pdf == b"b,a,c" else 1, 0, 2))
+    out, pdf = apply.tidy(dict(cv), ids, 2)
+    assert pdf == b"b,a,c" and [p["id"] for p in out["projects"]] == ["b", "a", "c"]  # no project split at the page break
+    monkeypatch.setattr(apply, "placement", lambda pdf, projects: (1, 0, 3 if pdf == b"b,a,c" else 2))
+    assert apply.tidy(dict(cv), ids, 2)[1] == b"a,b,c"  # nothing places better within the page limit: the tailored order stays
+
+
+def test_tidy_never_places_projects_worse_on_a_real_cv():
+    import copy
+    from jobquill.core import render
+    from ruamel.yaml import YAML
+    cv = YAML(typ="safe").load(open("jobquill/examples/sam-nurse-uk/master_cv.yaml", encoding="utf-8"))
+    cv["projects"] = [{"id": f"p{i}", "title": f"Project {i}", "org": "", "start": "2023-01", "end": "2024-01",
+                       "bullets": [{"id": f"p{i}b{j}", "text": f"Project{i}line{j} audited ward handovers and cut missed checks.", "tags": []}
+                                   for j in range(n)]} for i, n in enumerate((7, 2, 5))]
+    draw = lambda c: render.cv_pdf(c, "classic", "en", "GB")
+    before = apply.placement(draw(cv), cv["projects"])
+    out, pdf = apply.tidy(copy.deepcopy(cv), draw, 3)
+    after = apply.placement(pdf, out["projects"])
+    assert sorted(p["id"] for p in out["projects"]) == ["p0", "p1", "p2"] and after[:2] <= before[:2]

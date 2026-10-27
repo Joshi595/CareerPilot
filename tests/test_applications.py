@@ -57,3 +57,14 @@ def test_the_posting_reads_as_text_not_markdown(client, tmp_path):
     with db() as con:
         con.execute("insert into applications(id, company, role, status, folder) values (1, 'Acme', 'Nurse', 'interview', 'a1')")
     assert client.get("/api/applications/1/posting").json()["text"] == "Your tasks\n- Night shifts\nProfile\nC# and 3 # signs"
+
+
+def test_a_status_set_by_hand_keeps_its_day(client):
+    """Closed is sorted by when an application closed: a status set by hand has no reply to date it, so it keeps the day."""
+    import json
+    from datetime import date
+    with db() as con:
+        con.execute("insert into applications(id, company, role, status, data) values (1, 'Acme', 'Nurse', 'applied', '{}')")
+    client.put("/api/applications/1", json={"status": "rejected"})
+    with db() as con:
+        assert json.loads(con.execute("select data from applications where id=1").fetchone()[0])["status_at"] == date.today().isoformat()

@@ -148,8 +148,27 @@ def asked_missing(n: int = 15) -> list[tuple[str, int]]:
     return count.most_common(n)
 
 
-def check(text: str, posting: str = "", keywords=(), pdf=None, max_pages: int = 0) -> dict:
-    """{"fails": [...], "warns": [...], "coverage": [hit, missing]}. Any fail blocks the document."""
+def filled(pdf) -> float:
+    """How much of page 1's text area its text covers, top line to bottom line (0..1), taking the bottom margin as wide
+    as the top one."""
+    from pypdf import PdfReader
+    page, ys = PdfReader(pdf).pages[0], []
+    h = float(page.mediabox.height)
+
+    def v(text, cm, tm, font, size):
+        if text.strip():
+            ys.append(tm[4] * cm[1] + tm[5] * cm[3] + cm[5])
+    page.extract_text(visitor_text=v)
+    if not ys:
+        return 0.0
+    top, low = max(ys), min(ys)
+    area = top - (h - top)
+    return max(0.0, min(1.0, (top - low) / area)) if area > 0 else 1.0
+
+
+def check(text: str, posting: str = "", keywords=(), pdf=None, max_pages: int = 0, fill: float = 0) -> dict:
+    """{"fails": [...], "warns": [...], "coverage": [hit, missing]}. Any fail blocks the document. fill: a one-page
+    document (the letter) must cover at least this share of its page."""
     fails, warns = [], []
     if pdf:
         from pypdf import PdfReader
@@ -157,6 +176,10 @@ def check(text: str, posting: str = "", keywords=(), pdf=None, max_pages: int = 
         text = "\n".join(p.extract_text() for p in pages)
         if max_pages and len(pages) > max_pages:
             fails.append(f"more than {max_pages} page(s): {len(pages)}")
+        elif fill and len(pages) == 1 and (used := filled(pdf)) < fill:
+            more = max(20, round(len(text.split()) * (0.93 / max(used, 0.1) - 1) / 10) * 10)
+            fails.append(f"the letter fills only {used:.0%} of its page: add about {more} words of substance from the facts "
+                         "(it must stay on one page)")
         if len(text.split()) < 50:
             fails.append("almost no extractable text: applicant-tracking software would see an empty document")
         f, w = layout(pdf)

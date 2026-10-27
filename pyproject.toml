@@ -1,6 +1,6 @@
 [project]
 name = "jobquill"
-version = "0.13.0"
+version = "0.14.3"
 description = "Find jobs and tailor your CV and cover letter with the AI plan you already have. Runs on your own computer."
 readme = "README.md"
 license = "MIT"

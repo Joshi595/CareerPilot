@@ -482,7 +482,7 @@ SCANNERS = {"greenhouse": greenhouse, "ashby": ashby, "lever": lever, "personio"
             "bamboohr": bamboohr, "successfactors": successfactors, "join": join_com, "softgarden": softgarden, "page": page}
 
 # The hiring system a link reveals -> (scanner, ref).
-ATS = [(r"jobs\.ashbyhq\.com/([^/?#]+)", "ashby"), (r"(?:job-)?boards(?:\.eu)?\.greenhouse\.io/([^/?#]+)", "greenhouse"),
+ATS = [(r"jobs\.ashbyhq\.com/([^/?#]+)", "ashby"), (r"(?:job-)?boards(?:\.eu)?\.greenhouse\.io/(?:embed/[\w/]+\?for=)?([^/?#&]+)", "greenhouse"),
        (r"jobs\.lever\.co/([^/?#]+)", "lever"), (r"//([\w-]+)\.jobs\.personio\.(?:de|com)", "personio"),
        (r"jobs\.smartrecruiters\.com/([^/?#]+)", "smartrecruiters"), (r"//([\w-]+)\.recruitee\.com", "recruitee"),
        (r"apply\.workable\.com/([^/?#]+)", "workable"), (r"//([\w-]+\.teamtailor\.com)", "teamtailor"),
@@ -517,7 +517,9 @@ def find_ats(url: str):
 
 
 def posted_ok(posted: str, days: int) -> bool:
-    try:
-        return date.fromisoformat(posted[:10]) >= date.fromordinal(date.today().toordinal() - days)
-    except ValueError:
-        return True  # no date: keep, the dedupe drops repeats
+    for fmt in ("%Y-%m-%d", "%d.%m.%y", "%m/%d/%y"):  # boards also give German 14.10.26 and US 10/14/26
+        try:
+            return datetime.strptime(posted[:10], fmt).date() >= date.fromordinal(date.today().toordinal() - days)
+        except ValueError:
+            pass
+    return True  # no date: keep, the dedupe drops repeats

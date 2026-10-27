@@ -26,12 +26,16 @@ document.addEventListener("alpine:init", () => {
     count(s) { return s ? this.rows.filter(r => this.stageOf(r) === s).length : this.rows.length; },
     groups() {
       const q = this.q.toLowerCase();
-      const by = { new: (a, b) => (b.date_applied || "").localeCompare(a.date_applied || "") || b.id - a.id,
-                   old: (a, b) => (a.date_applied || "").localeCompare(b.date_applied || "") || a.id - b.id,
+      const at = r => this.stageOf(r) === "closed" ? this.closedAt(r) : r.date_applied || "";  // Closed: the latest rejection first
+      const by = { new: (a, b) => at(b).localeCompare(at(a)) || b.id - a.id,
+                   old: (a, b) => at(a).localeCompare(at(b)) || a.id - b.id,
                    company: (a, b) => a.company.localeCompare(b.company) }[this.sort];
       const rows = this.rows.filter(r => (!this.stage || this.stageOf(r) === this.stage)
         && (!q || `${r.role} ${r.company} ${r.note || ""}`.toLowerCase().includes(q))).sort(by);
       return STAGES.map(s => ({ s, rows: rows.filter(r => this.stageOf(r) === s) })).filter(g => g.rows.length);
+    },
+    closedAt(r) {  // when it closed: its latest reply or status set by hand (the day it was sent when neither is known)
+      return [r.date_applied, r.data.status_at, ...(r.data.replies || []).map(x => x.date)].filter(Boolean).sort().pop() || "";
     },
     totals() {
       const open = this.rows.filter(r => !["send", "closed"].includes(this.stageOf(r))).length;

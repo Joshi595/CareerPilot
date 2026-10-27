@@ -55,6 +55,7 @@
               <span class="job-title" x-show="!r.data.url" x-text="r.role"></span>
               <div class="app-meta">
                 <span x-text="r.company"></span><span aria-hidden="true">·</span><span class="num" x-text="fmtDate(r.date_applied) || '—'"></span>
+                <template x-if="g.s === 'closed'"><span class="num" x-text="'· ' + t('applications.closed_on', {date: fmtDate(closedAt(r))})"></span></template>
                 <span class="method" x-show="r.method" :title="r.method" role="img" :aria-label="r.method">
                   <svg class="i sm" aria-hidden="true"><use :href="'/static/icons.svg#i-' + methodIcon(r.method)"/></svg></span>
                 <span class="badge interview" x-show="soon(r)"><svg class="i sm" aria-hidden="true"><use href="/static/icons.svg#i-calendar"/></svg><span class="num" x-text="soon(r) && when(r.data.interview_at)"></span></span>

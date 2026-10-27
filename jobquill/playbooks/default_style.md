@@ -10,7 +10,7 @@ Goal: text a hiring manager reads as written by a capable person, not generated.
 - No em-dashes. Use a full stop, comma or brackets.
 
 ## Cover letter
-- One page, about 350 words, 4-5 paragraphs. No bullet lists.
+- One full page, about 450-500 words, 4-5 paragraphs: use the space, never more than one page. No bullet lists.
 - Open with the role and one concrete reason for this employer. Never "I am writing to apply".
 - Two pieces of evidence matched to the posting's top requirements, each with a number or concrete outcome.
 - Frame it forward: which of their tasks the person can take on, with past work as the proof.

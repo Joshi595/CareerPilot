@@ -298,6 +298,7 @@ def applied_to(job: dict, index=None) -> dict | None:
 
 
 # ---------------------------------------------------------------- steps
+LETTER_FILL = 0.85  # a standard letter fills at least this much of its one page
 RESUMABLE = ("new", "shortlisted", "filtered", "paused")  # f"in {RESUMABLE}" is the SQL list; statuses an application in progress moves to 'applying' from
 RUNNING, LOCK = set(), threading.Lock()  # applications being drafted right now: never two runs (and two bills) for one
 
@@ -357,13 +358,15 @@ def _draft(key: str, depth: str, stop_on_blocker: bool, resume=None, note: str =
     want = language or pr.doc_language
     permits = "; ".join(f"{c.code}: {c.permit or 'unknown'}" + (" (needs sponsorship)" if c.needs_sponsorship else "") for c in pr.targets)
     style = style_text()
-    paras = "4" if "short" in style.lower()[:400] else "5"
+    short = "short" in style.lower()[:400]
+    paras, words = ("4", "300-350") if short else ("5", "450-500")
     t = resume or ai.answer(prompts.build(
         "tailor", factsheet=factsheet(p), style=style, lessons=pf.read("lessons") or "(none yet)", variants=variants_text(),
         instructions=pr.instructions or "(none)", cv_rules=cv_rules(),
         language="the language the posting is written in" if want == "match" else want,
         languages=", ".join(f"{l['name']} {l.get('level', '')}" for l in p.get("languages", [])),
-        posting=untrusted(job["description"]), max_projects=str(MAX_PROJECTS), paragraphs=paras,
+        posting=untrusted(job["description"]), max_projects=str(MAX_PROJECTS), paragraphs=paras, words=words,
+        fit="it must fit one page" if short else "it fills one page with substance: never more than one page, never half empty",
         start=pr.start or "to be agreed", permits=permits or "not stated", availability=availability(pr),
         note=note or "(nothing)"), Tailor, agent(), 900, key).model_dump()
     dump(key, "tailor", t)
@@ -643,6 +646,35 @@ def filename(name: str, kind: str, company: str) -> str:
     return f"{clean(name, 30)}_{kind}_{clean(company, 24)}.pdf"
 
 
+def placement(pdf: bytes, projects: list[dict]) -> tuple[int, int, int]:
+    """How a CV PDF sits on its pages: (projects split across a page break, layout problems, pages). Lower is better."""
+    from io import BytesIO
+    from pypdf import PdfReader
+    texts = [" ".join((page.extract_text() or "").split()) for page in PdfReader(BytesIO(pdf)).pages]
+
+    def pages_of(project):  # the pages its bullets are on, found by their first words
+        starts = [" ".join(b["text"].replace("**", "").split()[:4]) for b in project.get("bullets") or [] if b.get("text")]
+        return {n for n, t in enumerate(texts) for s in starts if s and s in t}
+    return sum(len(pages_of(p)) > 1 for p in projects), len(check.layout(BytesIO(pdf))[0]), len(texts)
+
+
+def tidy(cv: dict, draw, limit: int) -> tuple[dict, bytes]:
+    """The CV with its projects in the order that places them best: within the page limit, none cut by a page break and
+    no layout problems if some order manages that, the space at a page's end used by a project that fits it. The
+    tailored order wins ties. Projects only: experience stays in time order. draw(cv) -> PDF; at most 6 orders (3 projects)."""
+    import itertools
+    pdf = draw(cv)
+    rate = lambda pdf, order: (lambda s: (s[2] > limit, s[0] + s[1]))(placement(pdf, order))
+    best, order = rate(pdf, cv["projects"]), cv["projects"]
+    for other in list(itertools.permutations(cv["projects"]))[1:] if best != (False, 0) else []:
+        candidate = draw({**cv, "projects": list(other)})
+        if (r := rate(candidate, list(other))) < best:
+            best, order, pdf = r, list(other), candidate
+            if best == (False, 0):
+                break
+    return {**cv, "projects": order}, pdf
+
+
 def build(key: str, design: str = "") -> dict:
     """PDFs from the accepted state, then the checks. Over the page limit: the last project is left out once."""
     s, fit, job = load(key, "state", {}), load(key, "fit"), posting.get(key)
@@ -664,12 +696,14 @@ def build(key: str, design: str = "") -> dict:
     if len(PdfReader(BytesIO(pdf)).pages) > pages and len(cv["projects"]) > 1:
         cv["projects"] = cv["projects"][:-1]
         pdf = render.cv_pdf(cv, design, lang, country, settings=settings)
+    cv, pdf = tidy(cv, lambda c: render.cv_pdf(c, design, lang, country, settings=settings), pages)  # a clean page break
     cv_path.write_bytes(pdf)
     letter = load(key, "letter") or {}
     letter_path = work(key) / filename(name, "Cover_Letter", fit["company"])
     letter_path.write_bytes(render.letter_pdf(letter, p["basics"], design, lang, country, settings=settings))
     checks = {"cv": check.check("", job["description"], fit.get("keywords", []), pdf=cv_path, max_pages=pages),
-              "letter": check.check("", job["description"], pdf=letter_path, max_pages=1)}
+              "letter": check.check("", job["description"], pdf=letter_path, max_pages=1,
+                                    fill=0 if "short" in style_text().lower()[:400] else LETTER_FILL)}
     set_stage(key, "ready", design=look, checks=checks)
     return {"stage": "ready", "files": [cv_path.name, letter_path.name], "checks": checks}
 

@@ -61,7 +61,7 @@ def backup() -> bytes:
             z.write(snap, "jobquill.db")
         for f in root.rglob("*"):
             rel = f.relative_to(root)
-            if f.is_file() and rel.parts[0] not in ("browser", "runs", "uploads", "cache") and not f.name.startswith("jobquill.db"):
+            if f.is_file() and rel.parts[0] not in ("browser", "runs", "uploads", "cache", "logs") and not f.name.startswith("jobquill.db"):
                 z.write(f, rel.as_posix())
     return buf.getvalue()
 

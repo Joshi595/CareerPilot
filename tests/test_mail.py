@@ -18,6 +18,19 @@ def test_classify_replies():
     # a maybe is not news: "if you are selected we will invite you to an interview"
     assert mail.classify("Thank you for applying. If you are shortlisted, we will invite you to an interview.") == "acknowledgement"
     assert mail.classify("Please complete the online assessment by Friday.") == "assessment"
+    # a rejection that only says it won't invite was filed as a receipt
+    assert mail.classify("Thank you for your application. Unfortunately, we have to inform you that we won't be able to "
+                         "invite you to the next phase of our selection process.") == "rejected"
+    # its German twin names the interview it won't hold: never an invite, a person reads it
+    assert mail.classify("Leider können wir Sie nicht zu einem Vorstellungsgespräch einladen.") in ("rejected", "unclear")
+    # German rejections a month of real mail filed as receipts
+    for said in ("Vielen Dank für Ihre Bewerbung. Leider können wir im Moment nicht mit Ihnen im Bewerbungsprozess fortfahren.",
+                 "Danke für deine Bewerbung. Leider können wir zum jetzigen Zeitpunkt nicht mit deiner Bewerbung fortfahren.",
+                 "Wir müssen dir leider mitteilen, dass wir dir zu diesem Zeitpunkt keine Stelle in unserem Unternehmen anbieten können.",
+                 "Leider muss ich Dich informieren, dass wir Dich nicht in den nächsten Schritt des Bewerbungsprozesses einladen können.",
+                 "Vielen Dank für deine Bewerbung. Inzwischen haben wir die Stelle leider besetzt."):
+        assert mail.classify(said) == "rejected", said
+    assert mail.classify("Leider konnten wir den Sichtungsprozess noch nicht abschließen und bitten um etwas Geduld.") is None
 
 
 def test_classify_next_steps_that_were_missed():
@@ -276,6 +289,29 @@ def checked(monkeypatch, mails, rows=()):
     mail.check_replies()
     with db() as con:
         return {i["msg_id"]: dict(i) for i in con.execute("select * from mail_items")}
+
+
+def test_a_hiring_team_with_a_hyphen_is_no_job_advert(home, monkeypatch):
+    """A real rejection was dropped: "Hiring-Team von …" read as a "we're hiring" advert (only "hiring team" was spared)."""
+    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    items = checked(monkeypatch, [{**mail_("Hiring-Team von Acme Travel <notification@careers.acme.example>",
+                                           "Acme: Your application for Werkstudent Produktmanagement",
+                                           "Leider haben wir uns für andere Bewerber entschieden."), "id": "<no@x>"}],
+                    [{"id": 1, "company": "Acme", "role": "Werkstudent Produktmanagement", "status": "applied"}])
+    assert items["<no@x>"]["app_id"] == 1
+    with db() as con:
+        assert con.execute("select status from applications where id=1").fetchone()[0] == "rejected"
+
+
+def test_a_rejection_is_never_skipped_for_a_word_in_the_job_title(home, monkeypatch):
+    """Another dropped rejection: "Dose Verification" in the title hit the skip word for "verify your email"."""
+    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    items = checked(monkeypatch, [{**mail_("Nordinstitut <nicht-antworten@nordinstitut.example>",
+                                           "Your Application - Students: Machine Learning in Real-Time Dose Verification",
+                                           "Leider müssen wir Ihnen mitteilen, dass wir Sie nicht berücksichtigen können."), "id": "<no@x>"}],
+                    [{"id": 1, "company": "Nordinstitut", "role": "Students: Machine Learning in Real-Time Dose Verification",
+                      "status": "applied"}])
+    assert items["<no@x>"]["app_id"] == 1
 
 
 def test_a_persons_reply_is_never_filed_as_nothing_to_do(home, monkeypatch):

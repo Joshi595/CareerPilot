@@ -6,6 +6,7 @@ JobQuill runs on your computer. There is no JobQuill server, no account with us,
 |---|---|---|
 | Profile, preferences, form answers, writing style | Your data folder (Help → *Open folder*) | The AI company you chose, when a step needs it |
 | Jobs, applications, PDFs | Your data folder | Only you; the employers you apply to get the PDFs you send |
+| AI run logs: what each AI step was sent and its whole answer, to see where tokens go | Your data folder, `logs/ai`, deleted after 30 days | Only you; never sent anywhere |
 | Email app password and other passwords, alert links (incl. a Telegram bot key) | Your computer's password store (Windows Credential Manager, macOS Keychain, Linux Secret Service), never a file | Only JobQuill on your computer. **Never the AI.** |
 
 **The data folder** is your computer's local app-data folder (on Windows `%LOCALAPPDATA%\JobQuill`). It is not inside

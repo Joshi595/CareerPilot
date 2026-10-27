@@ -9,7 +9,7 @@ The runs:
 | | Claude Code | Codex CLI | Antigravity CLI |
 |---|---|---|---|
 | Answer runs | `claude -p --json-schema … --tools ""` (tested) | `codex exec --output-schema … --sandbox read-only -` (untested) | `agy -p --output-format json --json-schema …` (untested) |
-| Cost levels | economy = haiku, premium = opus | default model | default model |
+| Cost levels | economy = haiku, standard = opus for the CV and letter and sonnet for the rest, premium = opus | default model | default model |
 
 To add an adapter: a subclass of `Agent` with `exe`, `command(schema)` and `extract(stdout)`; add it to `AGENTS`; test
 it with Help → *Test*. Rules: use the vendor's own program as the person installed and signed into it; never bundle it;

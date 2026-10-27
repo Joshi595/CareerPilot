@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from jobquill.core import ai, data
+from jobquill.core import ai, data, prompts
 
 
 class Ping(BaseModel):
@@ -51,13 +51,80 @@ def test_claude_extract():
 
 def test_claude_lean_call_and_main_model_tokens():
     c = ai.Claude()
-    assert "--system-prompt" in c.command({}) and "--model" not in c.command({}, "Tailor")
-    assert c.command({}, "Review")[-2:] == ["--model", "sonnet"]
+    assert "--system-prompt" in c.command({}) and "stream-json" in c.command({}) and "--verbose" in c.command({})
+    assert c.command({}, "Tailor")[-2:] == ["--model", "opus"]  # standard: the documents themselves on Opus,
+    assert c.command({}, "Review")[-2:] == ["--model", "sonnet"]  # every other step on Sonnet, the CLI's default never
+    from jobquill.core import apply
+    assert {apply.Tailor.__name__, apply.Change.__name__, apply.Revision.__name__} <= ai.WRITE_STEPS  # a rename can't move them
     c.level = "premium"
-    assert c.command({}, "Review")[-2:] == ["--model", "opus"]
+    assert c.command({}, "Tailor")[-2:] == ["--model", "opus"]
+    c.level = "economy"
+    assert c.command({}, "Review")[-2:] == ["--model", "haiku"]
     out = json.dumps({"modelUsage": {"claude-haiku-5-5": {"inputTokens": 900, "costUSD": 0.001},
                                      "claude-opus-5-5": {"inputTokens": 100, "outputTokens": 5, "costUSD": 0.05}}})
-    assert c.usage(out) == {"model": "claude-opus-5-5", "input": 100, "cached": 0, "output": 5, "cost_usd": 0.051}
+    u = c.usage(out)
+    assert {k: u[k] for k in ("model", "input", "cached", "output", "cost_usd")} == {
+        "model": "claude-opus-5-5", "input": 100, "cached": 0, "output": 5, "cost_usd": 0.051}
+
+
+def stream(cut=False):
+    """A stream-json run: two API calls (the first arrives as two lines with one id), a tool result in between."""
+    use = lambda i, cw, cr, o, th: {"input_tokens": i, "cache_creation_input_tokens": cw, "cache_read_input_tokens": cr,
+                                    "output_tokens": o, "output_tokens_details": {"thinking_tokens": th}}
+    first = {"id": "m1", "model": "claude-sonnet-5-5", "usage": use(10, 3000, 0, 50, 20)}
+    rows = [{"type": "system", "subtype": "init"},
+            {"type": "assistant", "message": {**first, "content": [{"type": "text", "text": "opening"}]}},
+            {"type": "assistant", "message": {**first, "content": [{"type": "tool_use", "id": "t1", "name": "mcp__pw__browser_navigate"}]}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "x" * 1200}]}},
+            {"type": "assistant", "message": {"id": "m2", "model": "claude-sonnet-5-5", "usage": use(5, 400, 3000, 30, 10),
+                                              "content": [{"type": "text", "text": "done"}]}}]
+    if not cut:
+        rows.append({"type": "result", "is_error": False, "num_turns": 2, "duration_api_ms": 4200, "structured_output": {"ok": True},
+                     "modelUsage": {"claude-sonnet-5-5": {"inputTokens": 15, "cacheCreationInputTokens": 3400,
+                                                          "cacheReadInputTokens": 3000, "outputTokens": 80, "costUSD": 0.019},
+                                    "claude-haiku-5-5": {"inputTokens": 300, "outputTokens": 10, "costUSD": 0.001}}})
+    return "\n".join(json.dumps(r) for r in rows)
+
+
+def test_stream_answer_extracts_structured_output():
+    assert ai.Claude().extract(stream()) == {"ok": True}
+
+
+def test_steps_dedupe_by_message_id():
+    s = ai.Claude().steps(stream())
+    assert len(s) == 2 and s[0]["tools"] == ["mcp__pw__browser_navigate"]
+    assert (s[0]["result_chars"], s[1]["result_chars"]) == (0, 1200)  # the second call read the tool's 1,200 chars
+    assert sum(x["thinking"] for x in s) == 30 and s[1]["cached"] == 3000
+
+
+def last_call():
+    with data.db() as con:
+        r = dict(con.execute("select * from ai_calls order by id desc").fetchone())
+        return r, [dict(x) for x in con.execute("select * from ai_steps where call_id=? order by n", (r["id"],))]
+
+
+def test_record_writes_detail_parts_and_log():
+    old = data.home() / "logs" / "ai" / "2000-01-01"
+    old.mkdir(parents=True)
+    prompts.build("rules", facts="abc")
+    ai.record("Submit", "k", ai.Claude(), stream(), 3.0, prompt="the prompt", mode="submit")
+    r, steps = last_call()
+    assert (r["turns"], r["fresh"], r["cache_write"], r["cached"], r["output"], r["thinking"]) == (2, 15, 3400, 3000, 80, 30)
+    assert r["input"] == 6415 and r["api_seconds"] == 4.2 and r["prompt_chars"] == 10
+    assert json.loads(r["parts"])["facts"] == 3 and "playbook" in json.loads(r["parts"])
+    assert (r["mode"], r["outcome"]) == ("submit", "ok") and "claude-haiku-5-5" in json.loads(r["models"])
+    assert [s["tools"] for s in steps] == ["mcp__pw__browser_navigate", ""] and steps[1]["result_chars"] == 1200
+    log = data.home() / r["log"]
+    assert log.read_text(encoding="utf-8") == stream() and (log.parent / f"{r['id']}.prompt.txt").read_text(encoding="utf-8") == "the prompt"
+    assert not old.exists()  # run logs are kept 30 days
+    ai.record("Review", "k", ai.Claude(), stream(), 1.0)
+    assert last_call()[0]["parts"] in (None, "")  # one prompt's parts never stick to the next call
+
+
+def test_record_without_result_line_keeps_partial_usage():
+    ai.record("Submit", "k", ai.Claude(), stream(cut=True), 3.0, error="no answer within 1800 s")
+    r, steps = last_call()
+    assert r["error"] and (r["output"], r["cached"], r["thinking"], r["turns"]) == (80, 3000, 30, 2) and len(steps) == 2
 
 
 def test_db_migrates(tmp_path, monkeypatch):
@@ -172,6 +239,8 @@ def test_moved_from_careerpilot(tmp_path, monkeypatch):
     assert (tmp_path / "appdata" / "CareerPilot").is_dir()
 
 
+
+
 def test_tmp_home_isolated(tmp_path, monkeypatch):
     """A test or scratch home never reads or writes the real keyring service, task or browser port."""
     monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
@@ -245,3 +314,14 @@ def test_codex_schemas_are_strict_and_answers_come_back():
     p = Profile.model_validate(ai.loosen(answer, schema))
     assert p.basics.links == {"github": "gh/ana"} and p.skills == {"Languages": ["Python"]} and p.summaries == {"ml": "ML engineer"}
     assert p.experience[0].org == "" and p.experience[0].bullets[0].tags == [] and p.projects == []
+
+
+def test_backup_leaves_out_the_run_logs():
+    import io
+    import zipfile
+    from jobquill.core import system
+    (data.home() / "logs" / "ai" / "2026-10-26").mkdir(parents=True)
+    (data.home() / "logs" / "ai" / "2026-10-26" / "1.jsonl").write_text("{}", encoding="utf-8")
+    (data.home() / "notes.txt").write_text("kept", encoding="utf-8")
+    names = zipfile.ZipFile(io.BytesIO(system.backup())).namelist()
+    assert "notes.txt" in names and not any(n.startswith("logs/") for n in names)

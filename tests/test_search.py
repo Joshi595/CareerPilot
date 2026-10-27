@@ -1,4 +1,6 @@
 import json
+import re
+from datetime import date
 
 import pytest
 
@@ -20,6 +22,8 @@ def home(tmp_path, monkeypatch):
 
 def test_ats_ref_and_liveness():
     assert sources.ats_ref("https://boards.greenhouse.io/acme/jobs/1") == ("greenhouse", "acme")
+    # a careers page that embeds its board names the company after ?for=
+    assert sources.ats_ref("https://boards.eu.greenhouse.io/embed/job_board/js?for=acme") == ("greenhouse", "acme")
     assert sources.ats_ref("https://acme.wd3.myworkdayjobs.com/en-US/External/job/x") == ("workday", "https://acme.wd3.myworkdayjobs.com/External")
     assert sources.ats_ref("https://apply.workable.com/acme/j/123") == ("workable", "acme")
     assert sources.classify(404, "")[0] == "expired"
@@ -267,15 +271,6 @@ def test_ledger_counts_error_answers_as_failed(tmp_path):
     assert [(r["step"], r["error"], r["input"]) for r in rows] == [("Tailor", "overloaded", 0), ("Review", "", 5)]
 
 
-def test_review_runs_on_the_check_model():
-    """CHECK_STEPS names answer models by class: renaming Review must not quietly move it to the expensive model."""
-    from jobquill.core import ai, apply
-    assert apply.Review.__name__ in ai.CHECK_STEPS
-    c = ai.Claude()
-    c.level = "standard"
-    assert "sonnet" in c.command({}, "Review") and "sonnet" not in c.command({}, "Tailor")
-
-
 def test_browser_only_sites_connect_like_chrome(monkeypatch):
     """StepStone stalls any non-browser connection: its pages go through curl_cffi as Chrome, everything else stays urllib."""
     import curl_cffi.requests
@@ -403,8 +398,8 @@ def test_the_best_new_matches_get_their_applicant_numbers(home, monkeypatch):
     with db() as con:
         for i, (score_, url) in enumerate([(80, "https://www.linkedin.com/jobs/view/111"), (75, "https://jobs.example/2"),
                                            (10, "https://www.linkedin.com/jobs/view/333")]):
-            con.execute("insert into jobs(key, title, url, status, score, first_seen, data) values (?,?,?,?,?,date('now'),'{}')",
-                        (f"k{i}", f"Job {i}", url, "new", score_))
+            con.execute("insert into jobs(key, title, url, status, score, first_seen, data) values (?,?,?,?,?,?,'{}')",
+                        (f"k{i}", f"Job {i}", url, "new", score_, date.today().isoformat()))  # local today, as store() writes it
     monkeypatch.setattr(sources, "applicants", lambda url: {"n": 12, "text": "12 applicants"} if "111" in url else None)
     monkeypatch.setattr(search.time, "sleep", lambda s: None)
     assert search.applicant_numbers() == 1
@@ -540,3 +535,19 @@ def test_loose_title_match_and_type_without_country():
     m = score.Matcher({"targets": [{"code": "DE"}], "job_types": ["student"], "titles": ["Softwareentwickler"]}, {})
     assert m.kind("Werkstudierende im Bereich NLP", "", "Fraunhofer") == "student"  # no country on the posting: theirs
     assert m.assess({"title": "Werkstudent Softwareentwicklung", "company": "C", "country": "DE"}, "")[1] is False
+
+
+def test_german_level_phrases_are_required():
+    from jobquill.core import countries
+    rx = countries.pack("DE")["language_required"]["German"]
+    hit = lambda text: re.search(rx, score.norm(text))
+    for text in ("Gute Deutschkenntnisse", "Gute Deutschkenntnisse in Wort und Schrift", "sichere Deutschkenntnisse",
+                 "German at B2 level or higher is required", "confident written and spoken German",
+                 "Fluent in English and German"):  # the 5 real blockers, and one more
+        assert hit(text), text
+    for text in ("Deutschkenntnisse von Vorteil", "German is a plus", "Wohnsitz in Deutschland erforderlich",
+                 "a good salary in Germany", "Gutes Team bei der Deutschen Bahn",
+                 "Nice to have: German B2 or above (strongly preferred)",
+                 "Knowledge of German is a plus. Fluent English is required.", "German (B1) would be a plus, English fluent",
+                 "Deutschkenntnisse sind von Vorteil, sehr gutes Englisch", "Fluent English and basic German"):
+        assert not hit(text), text

@@ -300,6 +300,7 @@ def ai_usage(days: int = 30):
     with db() as con:
         steps = [dict(r) for r in con.execute(
             "select step, count(*) calls, sum(error != '') failed, sum(input) input, sum(cached) cached, sum(output) output,"
+            " sum(fresh) fresh, sum(cache_write) cache_write, sum(thinking) thinking, avg(nullif(turns, 0)) turns,"
             " sum(cost_usd) cost_usd, avg(seconds) seconds from ai_calls where at >= datetime('now', ?)"
             " group by step order by sum(input) + sum(output) desc", (since,))]
         app = dict(con.execute(  # applications actually made (not drafts left half-way)

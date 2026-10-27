@@ -232,10 +232,14 @@
               <p class="small muted" x-show="u && !u.steps.length" x-text="t('settings.ai_use_none')"></p>
               <table class="usage" x-show="u?.steps.length">
                 <thead><tr><th x-text="t('apply.u_step')"></th><th x-text="t('settings.calls')"></th><th x-text="t('apply.u_in')"></th>
-                  <th x-text="t('apply.u_cached')"></th><th x-text="t('apply.u_out')"></th><th x-text="t('apply.u_cost')"></th><th x-text="t('settings.avg_s')"></th></tr></thead>
+                  <th x-text="t('apply.u_fresh')"></th><th x-text="t('apply.u_cache_write')"></th>
+                  <th x-text="t('apply.u_cached')"></th><th x-text="t('apply.u_out')"></th><th x-text="t('apply.u_thinking')"></th>
+                  <th x-text="t('settings.avg_turns')"></th><th x-text="t('apply.u_cost')"></th><th x-text="t('settings.avg_s')"></th></tr></thead>
                 <tbody><template x-for="s in [...(u?.steps || []), {...usageTotal(u?.steps || []), calls: (u?.steps || []).reduce((a, x) => a + x.calls, 0)}]">
                   <tr :class="s.total && 'total'"><td x-text="stepName(s.step)"></td><td x-text="s.calls + (s.failed ? ' (' + s.failed + ' ✗)' : '')"></td>
-                    <td x-text="kTok(s.input)"></td><td x-text="kTok(s.cached)"></td><td x-text="kTok(s.output)"></td>
+                    <td x-text="kTok(s.input)"></td><td x-text="kTok(s.fresh)"></td><td x-text="kTok(s.cache_write)"></td>
+                    <td x-text="kTok(s.cached)"></td><td x-text="kTok(s.output)"></td><td x-text="kTok(s.thinking)"></td>
+                    <td x-text="s.turns ? s.turns.toFixed(1) : ''"></td>
                     <td x-text="'$' + (s.cost_usd || 0).toFixed(2)"></td><td x-text="s.seconds ? Math.round(s.seconds) : ''"></td></tr>
                 </template></tbody>
               </table>

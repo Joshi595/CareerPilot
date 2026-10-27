@@ -61,6 +61,24 @@ MIGRATIONS = [
                            title text, body text, key text, tries integer default 0, sent_at text, error text,
                            fallback integer default 0);
     """,
+    # The AI ledger in detail, to see where tokens go: fresh input / cache writes / cache reads / output / thinking,
+    # API calls in the run, prompt size per part, every model the CLI used, the mode and outcome, the run and its log
+    "alter table ai_calls add column fresh integer default 0;",
+    "alter table ai_calls add column cache_write integer default 0;",
+    "alter table ai_calls add column thinking integer default 0;",
+    "alter table ai_calls add column turns integer default 0;",
+    "alter table ai_calls add column api_seconds real default 0;",
+    "alter table ai_calls add column prompt_chars integer default 0;",
+    "alter table ai_calls add column parts text;",
+    "alter table ai_calls add column models text;",
+    "alter table ai_calls add column mode text default '';",
+    "alter table ai_calls add column outcome text default '';",
+    "alter table ai_calls add column batch text default '';",
+    "alter table ai_calls add column log text default '';",
+    """
+    create table if not exists ai_steps (call_id integer, n integer, tools text, result_chars integer, fresh integer,
+                           cache_write integer, cached integer, output integer, thinking integer, primary key (call_id, n));
+    """,
 ]
 
 
@@ -71,6 +89,8 @@ def folder(name: str) -> Path:
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / name
     return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / name.lower()
+
+
 
 
 def home() -> Path:
