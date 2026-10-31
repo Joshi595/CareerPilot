@@ -12,31 +12,31 @@ Please don't open a public issue for a security problem. Report it privately on 
 week, and a fix goes into the next release.
 
 In scope: anything that lets a website, a job posting, an email, another program or **another account on the same
-computer** read or change your JobQuill data, your passwords or your files, or act in your name (send email,
+computer** read or change your JobGambit data, your passwords or your files, or act in your name (send email,
 apply, delete). Out of scope: problems that need someone who is already signed in to *your* computer account.
 
-## What JobQuill defends against
+## What JobGambit defends against
 
 | Who | What they could try | What stops them |
 |---|---|---|
-| A website you visit | Call the app's local address from your browser | Every request needs a key that only JobQuill's own page has; requests under another host name are refused (DNS rebinding) |
+| A website you visit | Call the app's local address from your browser | Every request needs a key that only JobGambit's own page has; requests under another host name are refused (DNS rebinding) |
 | Another program, or another account on the same computer | Open `127.0.0.1` and take over the app | The page opens only with a launch code stored in your private data folder (see below) |
 | Another account on the same computer | Read your certificates and PDFs | The data folder and the *Current application* folder are readable by your account only |
 | A job posting or an email | Give the AI instructions, or get it to copy your files into a letter | Untrusted text is fenced as data; Claude runs with no tools; documents with password- or key-shaped text fail their checks; you see everything before it's sent |
-| A link in a posting | Make JobQuill fetch something on your computer or network | Only public `http`/`https` addresses, checked again after every redirect |
+| A link in a posting | Make JobGambit fetch something on your computer or network | Only public `http`/`https` addresses, checked again after every redirect |
 | A compromised update | Reach every user at once | Updates install a tagged release only; CI actions are pinned to exact versions and dependencies are audited |
 
 ## How it works
 
-- **Local only.** The app is a web server on `127.0.0.1`. Each start makes a new key that only JobQuill's own page
+- **Local only.** The app is a web server on `127.0.0.1`. Each start makes a new key that only JobGambit's own page
   knows; every API request without it is refused.
 - **Launch code.** `127.0.0.1` is shared by every account on the computer, so the page itself is protected too: it is
-  served only with a launch code, which JobQuill keeps in your data folder (`instance.json`, readable by you
+  served only with a launch code, which JobGambit keeps in your data folder (`instance.json`, readable by you
   only). On start it opens a small file there (`open.html`) that carries the code, so the code never shows up in a
   command line another account could see. On Linux the browser gets the address itself, because snap browsers (Ubuntu's
   Firefox) can't open files in hidden folders: there, other accounts can see the code in the process list while the
   browser runs. Opening the bare address only says to use the Start icon. *Delete
-  everything* removes the code; the next start makes a new one. (If you point `JOBQUILL_HOME` at a folder of your
+  everything* removes the code; the next start makes a new one. (If you point `JOBGAMBIT_HOME` at a folder of your
   own on Windows, that folder is only as private as you made it.)
 - **The page runs only its own code.** A Content Security Policy allows no inline scripts and no `javascript:` links,
   and the page can't be shown inside another website. Text from postings and emails is always shown as text, never as
@@ -47,7 +47,7 @@ apply, delete). Out of scope: problems that need someone who is already signed i
 
 ## The AI apps and what they can reach
 
-JobQuill works through the AI app you already have. What each can reach on your computer:
+JobGambit works through the AI app you already have. What each can reach on your computer:
 
 | AI | Tools | Can it read your files? |
 |---|---|---|

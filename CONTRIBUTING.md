@@ -4,22 +4,22 @@ Thanks for helping. The most useful contributions:
 
 - **A country pack** (job sources, CV conventions, local job-type words): see [docs/country-packs.md](docs/country-packs.md).
 - **A CV design**: one YAML file, see [docs/designs.md](docs/designs.md).
-- **Translations** of the app (`jobquill/app/i18n/en.json` → `<lang>.json`).
+- **Translations** of the app (`jobgambit/app/i18n/en.json` → `<lang>.json`).
 - **Bug reports**: Help → *Copy a problem report*, then open an issue.
 
 ## Development
 
 ```
 uv sync
-uv run jobquill        # opens the app in your browser (JOBQUILL_HOME=<folder> keeps test data apart)
+uv run jobgambit        # opens the app in your browser (JOBGAMBIT_HOME=<folder> keeps test data apart)
 uv run pytest
 ```
-With `JOBQUILL_NO_BROWSER=1`, open `open.html` in the data folder: the page needs its launch code.
+With `JOBGAMBIT_NO_BROWSER=1`, open `open.html` in the data folder: the page needs its launch code.
 
-Screenshots in `docs/images` show the example person (`jobquill/examples`) in a scratch `JOBQUILL_HOME`,
+Screenshots in `docs/images` show the example person (`jobgambit/examples`) in a scratch `JOBGAMBIT_HOME`,
 never real data, at 1360 × 820.
 
-## Rules that keep JobQuill trustworthy
+## Rules that keep JobGambit trustworthy
 
 1. **Facts only.** Nothing may put text into a CV, letter or form that isn't in the person's profile or their own answers.
    `core/check.py` blocks invented numbers; keep it that way.

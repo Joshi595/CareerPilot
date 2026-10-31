@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from jobquill.core import mail
-from jobquill.core import profile as pf
-from jobquill.core.data import db
+from jobgambit.core import mail
+from jobgambit.core import profile as pf
+from jobgambit.core.data import db
 
 TRIAGE = mail.triage  # the real one (the home fixture swaps it out: no test calls an AI unless it fakes the AI itself)
 
@@ -28,7 +28,10 @@ def test_classify_replies():
                  "Danke für deine Bewerbung. Leider können wir zum jetzigen Zeitpunkt nicht mit deiner Bewerbung fortfahren.",
                  "Wir müssen dir leider mitteilen, dass wir dir zu diesem Zeitpunkt keine Stelle in unserem Unternehmen anbieten können.",
                  "Leider muss ich Dich informieren, dass wir Dich nicht in den nächsten Schritt des Bewerbungsprozesses einladen können.",
-                 "Vielen Dank für deine Bewerbung. Inzwischen haben wir die Stelle leider besetzt."):
+                 "Vielen Dank für deine Bewerbung. Inzwischen haben wir die Stelle leider besetzt.",
+                 "Leider haben wir uns im Bewerbungsprozess für eine:n andere:n Kandidat:in entschieden.",  # gender colon
+                 "We finished the review of your documents and deeply regret to having to inform you that we have no "
+                 "adequate vacancy which fits your qualifications at the moment."):
         assert mail.classify(said) == "rejected", said
     assert mail.classify("Leider konnten wir den Sichtungsprozess noch nicht abschließen und bitten um etwas Geduld.") is None
 
@@ -125,7 +128,7 @@ def test_link_by_sender_name_number_and_role():
     assert mail.link(mail_("Stepstone <info@email.stepstone.example>", "Alex, your application for Machine Learning Engineer "
                            "Automatisiertes Fahren has been sent"), rows)[0]["id"] == 10
     # learned: the conversation and the job number bring the next mails to the same application
-    from jobquill.core.data import db
+    from jobgambit.core.data import db
     with db() as con:
         con.executemany("insert into applications(id, company, role, status, data) values (?,?,?,?,?)",
                         [(r["id"], r["company"], r["role"], r["status"], r["data"]) for r in rows])
@@ -161,7 +164,7 @@ def test_no_reply_is_dropped(home, monkeypatch):
     """The safety rule: every mail about an application is linked or lands in Needs you; next steps push at once, and a
     linked interview invite needs you too (reply, book a slot), not only a new status."""
     sent = []
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda event, title, body, **k: sent.append((event, title)) or True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda event, title, body, **k: sent.append((event, title)) or True)
     with db() as con:
         for r in rows_():
             con.execute("insert into applications(id, company, role, status, data) values (?,?,?,?,?)",
@@ -183,7 +186,7 @@ def test_no_reply_is_dropped(home, monkeypatch):
     with db() as con:
         status = dict(con.execute("select id, status from applications").fetchall())
         items = {i["subject"]: i for i in con.execute("select * from mail_items")}
-    assert status[1] == "interview" and ("interview", "JobQuill: Interview · Nordwest Brandschutz Service Kramer GbR") in sent
+    assert status[1] == "interview" and ("interview", "JobGambit: Interview · Nordwest Brandschutz Service Kramer GbR") in sent
     assert items["Ihre Bewerbung als Werkstudent KI"]["done"] == 0 and items["Ihre Bewerbung als Werkstudent KI"]["app_id"] == 1
     assert items["Your application"]["app_id"] is None and items["Your application"]["done"] == 0  # kept for the person
     assert items["Bitte schließen Sie Ihre Bewerbung ab"]["signal"] == "action" and any(e == "action" for e, _ in sent)
@@ -194,7 +197,7 @@ def test_no_reply_is_dropped(home, monkeypatch):
 
 def test_receipts_are_filed_by_themselves_and_logged(home, monkeypatch):
     """A receipt never asks anything: linked or not, it is filed (auto=1) with a line saying what was done."""
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda *a, **k: True)
     with db() as con:
         for r in rows_():
             con.execute("insert into applications(id, company, role, status, data) values (?,?,?,?,?)",
@@ -248,7 +251,7 @@ def test_a_receipt_goes_to_the_application_sent_just_before_it(home):
 def test_ai_reads_what_the_rules_cant(home, monkeypatch):
     """A linked human reply with no known phrase: the AI sorts it (summary, signal, time). Without AI it still lands in
     Needs you as "Read this" (a person wrote it), and a no-reply notice without a signal is filed."""
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda *a, **k: True)
     with db() as con:
         con.execute("insert into applications(id, company, role, status, data) values (1, 'Acme Robotics', 'Data Engineer', 'applied', '{}')")
     human = {**mail_("Jane Doe <jane@acme-robotics.example>", "Your application at Acme Robotics",
@@ -293,7 +296,7 @@ def checked(monkeypatch, mails, rows=()):
 
 def test_a_hiring_team_with_a_hyphen_is_no_job_advert(home, monkeypatch):
     """A real rejection was dropped: "Hiring-Team von …" read as a "we're hiring" advert (only "hiring team" was spared)."""
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda *a, **k: True)
     items = checked(monkeypatch, [{**mail_("Hiring-Team von Acme Travel <notification@careers.acme.example>",
                                            "Acme: Your application for Werkstudent Produktmanagement",
                                            "Leider haben wir uns für andere Bewerber entschieden."), "id": "<no@x>"}],
@@ -305,7 +308,7 @@ def test_a_hiring_team_with_a_hyphen_is_no_job_advert(home, monkeypatch):
 
 def test_a_rejection_is_never_skipped_for_a_word_in_the_job_title(home, monkeypatch):
     """Another dropped rejection: "Dose Verification" in the title hit the skip word for "verify your email"."""
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda *a, **k: True)
     items = checked(monkeypatch, [{**mail_("Nordinstitut <nicht-antworten@nordinstitut.example>",
                                            "Your Application - Students: Machine Learning in Real-Time Dose Verification",
                                            "Leider müssen wir Ihnen mitteilen, dass wir Sie nicht berücksichtigen können."), "id": "<no@x>"}],
@@ -316,8 +319,8 @@ def test_a_rejection_is_never_skipped_for_a_word_in_the_job_title(home, monkeypa
 
 def test_a_persons_reply_is_never_filed_as_nothing_to_do(home, monkeypatch):
     """A recruiter's "thanks for your application, could you send your availability?" is no receipt, and a person's
-    mail about an application JobQuill can't place is still the person's to read (no AI here)."""
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    mail about an application JobGambit can't place is still the person's to read (no AI here)."""
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda *a, **k: True)
     acme = [{"id": 1, "company": "Acme Robotics", "role": "Data Engineer", "status": "applied"}]
     items = checked(monkeypatch, [
         {**mail_("Jane Doe <jane.doe@acme-robotics.example>", "Your application at Acme Robotics",
@@ -341,7 +344,7 @@ def test_one_bad_mail_never_stops_the_check(home, monkeypatch):
             raise ValueError("embedded null character")
         pushed.append(title)
         return True
-    monkeypatch.setattr("jobquill.core.alerts.push", push)
+    monkeypatch.setattr("jobgambit.core.alerts.push", push)
     rows = [{"id": 1, "company": "Acme Robotics", "role": "Data Engineer", "status": "applied"},
             {"id": 2, "company": "Nordwind Labs", "role": "Data Analyst", "status": "applied"}]
     mails = [mail_("Jane <jane@acme-robotics.example>", "Invitation to an interview at Acme Robotics",
@@ -359,8 +362,8 @@ def test_one_bad_mail_never_stops_the_check(home, monkeypatch):
 
 
 def test_an_ai_time_with_a_timezone_still_reminds(home, monkeypatch):
-    from jobquill.core import ai
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    from jobgambit.core import ai
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda *a, **k: True)
     monkeypatch.setattr(mail, "triage", TRIAGE)
     monkeypatch.setattr(ai, "chosen", lambda *a, **k: None)  # as if an AI app were installed (CI has none)
     monkeypatch.setattr(ai, "answer", lambda *a, **k: mail.Triage(signal="interview", app_id=1, when="2099-10-27T15:00+01:00",
@@ -370,7 +373,7 @@ def test_an_ai_time_with_a_timezone_still_reminds(home, monkeypatch):
     at = next(iter(items.values()))["at"]
     assert len(at) == 16 and "+" not in at  # local time, no offset: every comparison and reminder works with it
     pushed = []
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda event, title, body, **k: pushed.append(title) or True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda event, title, body, **k: pushed.append(title) or True)
     with db() as con:
         con.execute("insert into applications(id, company, role, status, data) values (2, 'Old', 'X', 'interview', ?)",
                     (json.dumps({"interview_at": "2099-10-28T14:00+00:00"}),))  # stored by an earlier version
@@ -378,12 +381,12 @@ def test_an_ai_time_with_a_timezone_still_reminds(home, monkeypatch):
                     (json.dumps({"interview_at": "2099-10-28T14:00"}),))
     frozen(monkeypatch, "2099-10-27T18:00")
     mail.reminders()
-    assert "JobQuill: interview tomorrow at 14:00 · Beta" in pushed
+    assert "JobGambit: interview tomorrow at 14:00 · Beta" in pushed
 
 
 def test_ai_triage_never_breaks_the_check(home, monkeypatch):
     """Any failure of the AI (not only its own errors: a missing command, a broken answer) leaves the rules to decide."""
-    from jobquill.core import ai
+    from jobgambit.core import ai
     monkeypatch.setattr(ai, "chosen", lambda *a, **k: None)  # as if an AI app were installed (CI has none)
     monkeypatch.setattr(ai, "answer", lambda *a, **k: (_ for _ in ()).throw(OSError("the AI command is gone")))
     assert TRIAGE(mail_("Jane <jane@acme.example>", "Hi", "Can we talk?"), []) is None
@@ -424,7 +427,7 @@ def test_wrong_link_is_undone_and_the_right_one_gets_the_status(home):
     """Filed by itself › Wrong? Link it: the wrong application loses the reply, conversation, number, time and the
     status the mail gave it; the right one gets them."""
     from fastapi.testclient import TestClient
-    from jobquill.app import server
+    from jobgambit.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     with db() as con:
         for i in (1, 2):
@@ -445,7 +448,7 @@ def test_wrong_link_is_undone_and_the_right_one_gets_the_status(home):
 
 def test_linking_an_interview_moves_the_application_forward(home):
     from fastapi.testclient import TestClient
-    from jobquill.app import server
+    from jobgambit.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     with db() as con:
         con.execute("insert into applications(id, company, role, status, data) values (9, 'Acme', 'Nurse', 'applied', '{}')")
@@ -461,7 +464,7 @@ def test_an_interview_that_mentions_registering_is_still_an_interview(home):
     """"Bitte registrieren Sie sich für den Termin" doesn't make an interview a company account mail (which would hide
     its application and its time)."""
     from fastapi.testclient import TestClient
-    from jobquill.app import server
+    from jobgambit.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     with db() as con:
         con.execute("insert into mail_items(msg_id, date, frm, subject, signal, snippet, body, candidates) values "
@@ -474,8 +477,8 @@ def test_an_account_mail_is_one_company_action(home, monkeypatch):
     """"Confirm your e-mail address" from a portal with ten applications: one action for the company, no question
     about which application."""
     from fastapi.testclient import TestClient
-    from jobquill.app import server
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda *a, **k: True)
+    from jobgambit.app import server
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda *a, **k: True)
     with db() as con:
         for i, role in enumerate(["Werkstudent Fahrwerk", "Werkstudent Marketing"], 1):
             con.execute("insert into applications(id, company, role, status, data) values (?, 'Autowerk AG', ?, 'applied', '{}')", (i, role))
@@ -492,13 +495,13 @@ def test_an_account_mail_is_one_company_action(home, monkeypatch):
 
 def test_failing_check_alerts_and_keeps_its_place(home, monkeypatch):
     sent = []
-    monkeypatch.setattr("jobquill.core.alerts.send", lambda event, title, body, **k: sent.append(title) or True)
+    monkeypatch.setattr("jobgambit.core.alerts.send", lambda event, title, body, **k: sent.append(title) or True)
     monkeypatch.setattr(mail, "configured", lambda: True)
     monkeypatch.setattr(mail, "fetch", lambda since: (_ for _ in ()).throw(OSError("login refused")))
     mail._save({"seen": [], "last": "2026-10-20"})
     assert "login refused" in mail.hourly()
     mail.hourly()  # within 6 hours: no second alert
-    assert sent == ["JobQuill can't read your email"] and mail._state()["last"] == "2026-10-20"
+    assert sent == ["JobGambit can't read your email"] and mail._state()["last"] == "2026-10-20"
 
 
 def frozen(monkeypatch, when: str):
@@ -513,7 +516,7 @@ def frozen(monkeypatch, when: str):
 
 def test_interview_reminders_evening_morning_and_soon_each_once(home, monkeypatch):
     pushed = []
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda event, title, body, **k: pushed.append((event, title)) or True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda event, title, body, **k: pushed.append((event, title)) or True)
     with db() as con:
         con.execute("insert into applications(id, company, role, status, data) values (1, 'Acme', 'Nurse', 'interview', ?)",
                     (json.dumps({"interview_at": "2099-10-28T14:00"}),))
@@ -521,9 +524,9 @@ def test_interview_reminders_evening_morning_and_soon_each_once(home, monkeypatc
                 "2099-10-28T12:00", "2099-10-28T13:00"):
         frozen(monkeypatch, now)
         mail.reminders()
-    assert pushed == [("interview", "JobQuill: interview tomorrow at 14:00 · Acme"),
-                      ("interview", "JobQuill: interview today at 14:00 · Acme"),
-                      ("interview", "JobQuill: interview at 14:00 (in 2 hours) · Acme")]
+    assert pushed == [("interview", "JobGambit: interview tomorrow at 14:00 · Acme"),
+                      ("interview", "JobGambit: interview today at 14:00 · Acme"),
+                      ("interview", "JobGambit: interview at 14:00 (in 2 hours) · Acme")]
 
 
 def test_a_silent_email_check_is_caught(home, monkeypatch):
@@ -531,12 +534,12 @@ def test_a_silent_email_check_is_caught(home, monkeypatch):
     the task is put back and the check runs now. At app start it only catches up, quietly (the computer was off)."""
     pushed, ran = [], []
     monkeypatch.setattr(mail, "configured", lambda: True)
-    monkeypatch.setattr("jobquill.core.alerts.push", lambda event, title, body, **k: pushed.append(title) or True)
+    monkeypatch.setattr("jobgambit.core.alerts.push", lambda event, title, body, **k: pushed.append(title) or True)
     monkeypatch.setattr(mail, "hourly", lambda: ran.append("check"))
-    monkeypatch.setattr("jobquill.core.scheduler.ensure", lambda *a, **k: ran.append("ensure"))
+    monkeypatch.setattr("jobgambit.core.scheduler.ensure", lambda *a, **k: ran.append("ensure"))
     mail._save({"seen": [], "last": "", "ok_at": "2026-01-01T08:00"})
     mail.watchdog(loud=True)
-    assert pushed == ["JobQuill's email check isn't running"] and ran == ["ensure", "check"]
+    assert pushed == ["JobGambit's email check isn't running"] and ran == ["ensure", "check"]
     pushed.clear(), ran.clear()
     mail.watchdog(loud=False)
     assert pushed == [] and ran == ["ensure", "check"]
@@ -581,9 +584,9 @@ def test_mail_checks_the_servers_certificate(monkeypatch):
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    monkeypatch.setattr("jobquill.core.alerts.send", lambda *a, **k: False)
-    monkeypatch.setattr("jobquill.core.alerts.desktop", lambda *a, **k: None)
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    monkeypatch.setattr("jobgambit.core.alerts.send", lambda *a, **k: False)
+    monkeypatch.setattr("jobgambit.core.alerts.desktop", lambda *a, **k: None)
     monkeypatch.setattr(mail, "triage", lambda m, cands: None)  # never a real AI call from a test (one is installed here)
     return tmp_path
 
@@ -608,7 +611,7 @@ def test_person_says_which_application(home):
     """Mail to check › Which application?: the reply joins it with its status, and the next mail in that conversation
     links by itself."""
     from fastapi.testclient import TestClient
-    from jobquill.app import server
+    from jobgambit.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     with db() as con:
         con.execute("insert into applications(id, company, role, status, data) values (9, 'Acme', 'Nurse', 'applied', '{}')")

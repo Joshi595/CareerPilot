@@ -12,7 +12,7 @@ Settings → *Job search* → *Job sources* shows what each source returned. Job
 probably changed its page. Copy a problem report (Help) and open an issue.
 
 **Where do the "career sites" come from?**
-JobQuill learns them by itself. When a posting links to a company's own careers page, when it reaches one while
+JobGambit learns them by itself. When a posting links to a company's own careers page, when it reaches one while
 applying, or when a company it has seen uses a common hiring system, that site goes on your list. From then on it is
 searched directly, at most once a day. Settings → *Career sites* shows the list and where each site came from.
 You can also paste a careers link there yourself.
@@ -27,13 +27,13 @@ a word or company you hid, or off-topic. Nothing is thrown away. *Move to my boa
 for good. Use the chips above the list to see one reason at a time.
 
 
-**What does the "Ask JobQuill" box do?**
+**What does the "Ask JobGambit" box do?**
 At the top of Settings and Profile, type what you want in your own words: "Also search in Munich", "Make my letters
 less formal", "My earliest start is 1 January", "Add Docker to my skills". It shows what would change in your settings,
 CV instructions, letter instructions, application details or CV, each with a tick box, and saves only what you tick
 when you press *Apply*. It can't change your email or passwords: those only change on their own pages.
 
-**How do I tell JobQuill how to write my CV and letters?**
+**How do I tell JobGambit how to write my CV and letters?**
 Profile › *Writing* has your CV instructions and letter instructions, one rule per line. Every application follows
 them. You can also add a rule while reviewing an application ("Always do something?"), or ask in the Ask box.
 
@@ -52,5 +52,5 @@ the fact to your profile if it's true.
 Help → *Check for updates*. Your data is never touched by an update.
 
 **How do I move to a new computer?**
-Help → *Download a backup* on the old one. Install JobQuill on the new one, then unzip the backup into the new data
+Help → *Download a backup* on the old one. Install JobGambit on the new one, then unzip the backup into the new data
 folder (Help → *Open folder*). Passwords are not in the backup; enter them again in Settings.

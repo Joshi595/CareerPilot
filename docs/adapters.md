@@ -1,6 +1,6 @@
 # AI adapters
 
-JobQuill runs the person's own AI through that vendor's command-line program (`jobquill/core/ai.py`).
+JobGambit runs the person's own AI through that vendor's command-line program (`jobgambit/core/ai.py`).
 The runs:
 
 - **Answer runs** (almost everything): the whole prompt on stdin, no tools, JSON that matches a schema

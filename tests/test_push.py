@@ -6,15 +6,15 @@ import apprise
 import keyring
 import pytest
 
-from jobquill.core import alerts, mail
-from jobquill.core import profile as pf
+from jobgambit.core import alerts, mail
+from jobgambit.core import profile as pf
 
 DESKTOP = alerts.desktop  # the real one (conftest swaps it out for every test; this test runs it with a fake subprocess)
 
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     store = {}
     monkeypatch.setattr(keyring, "get_password", lambda s, n: store.get((s, n)))
     monkeypatch.setattr(keyring, "set_password", lambda s, n, v: store.__setitem__((s, n), v))
@@ -37,19 +37,19 @@ def phone(home, monkeypatch):
                 Phone.got.append(title)
             return Phone.up
     monkeypatch.setattr(apprise, "Apprise", Phone)
-    alerts.set_urls(["ntfy://jobquill-test"])
+    alerts.set_urls(["ntfy://jobgambit-test"])
     Phone.up, Phone.got = True, []
     return Phone
 
 
 def test_an_alert_that_didnt_arrive_is_sent_on_the_next_run_once(phone):
     phone.up = False
-    alerts.push("interview", "JobQuill: Interview · Acme", "Tue 10:00")
+    alerts.push("interview", "JobGambit: Interview · Acme", "Tue 10:00")
     assert phone.got == []
     phone.up = True
     alerts.flush()
     alerts.flush()
-    assert phone.got == ["JobQuill: Interview · Acme"]
+    assert phone.got == ["JobGambit: Interview · Acme"]
 
 
 def test_important_alerts_cant_be_switched_off(phone):
@@ -98,16 +98,16 @@ def test_one_broken_channel_doesnt_make_the_working_one_repeat(home, monkeypatch
             got.extend(u for u in self.urls if u.startswith("ntfy"))
             return all(u.startswith("ntfy") for u in self.urls)  # Apprise: False when any of its links failed
     monkeypatch.setattr(apprise, "Apprise", Channels)
-    alerts.set_urls(["ntfy://jobquill-test", "tgram://123:expired/1"])
+    alerts.set_urls(["ntfy://jobgambit-test", "tgram://123:expired/1"])
     alerts.push("interview", "Interview · Acme", "")
     alerts.flush()
     alerts.flush()
-    assert got == ["ntfy://jobquill-test"] and not alerts.failing()
+    assert got == ["ntfy://jobgambit-test"] and not alerts.failing()
 
 
 def test_the_red_line_goes_once_alerts_arrive_again(phone):
     """An alert given up after 3 days doesn't keep saying "your alerts haven't arrived" forever."""
-    from jobquill.core.data import db
+    from jobgambit.core.data import db
     with db() as con:
         con.execute("insert into alerts_out(at, event, title, body, key) values ('2020-01-01 09:00:00', 'interview', 'old', '', '')")
     assert alerts.failing() == ""
@@ -132,19 +132,19 @@ def test_a_hostile_subject_never_breaks_the_desktop_notification(monkeypatch):
 def test_the_email_check_stands_alone_and_comes_back(home, monkeypatch):
     """Switching the daily search off never stops the email check; a task deleted by hand or still running an old
     command is made again; the check runs the windowless launcher next to this Python, never python.exe."""
-    from jobquill.core import scheduler
+    from jobgambit.core import scheduler
     tasks = {}
     monkeypatch.setattr(scheduler, "current", lambda: dict(tasks))
     monkeypatch.setattr(scheduler, "_enable", lambda job, at: tasks.__setitem__(job, scheduler.line(job)))
     monkeypatch.setattr(scheduler, "_disable", lambda job: tasks.pop(job, None))
-    assert "jobquill-app" in scheduler.line("mail") and "python.exe" not in scheduler.line("mail")
+    assert "jobgambit-app" in scheduler.line("mail") and "python.exe" not in scheduler.line("mail")
     tasks["search"] = scheduler.line("search")
     scheduler.ensure(search_time="", mail_on=True)
     assert set(tasks) == {"mail"}
     tasks.clear()
     scheduler.ensure(search_time="09:00", mail_on=True)
     assert set(tasks) == {"search", "mail"}
-    tasks["mail"] = "C:\\x\\python.exe -m jobquill.app.server mail"
+    tasks["mail"] = "C:\\x\\python.exe -m jobgambit.app.server mail"
     scheduler.ensure(search_time="09:00", mail_on=True)
     assert tasks["mail"] == scheduler.line("mail")
     scheduler.ensure(search_time="", mail_on=False)
@@ -152,10 +152,10 @@ def test_the_email_check_stands_alone_and_comes_back(home, monkeypatch):
 
 
 def test_a_windows_task_is_read_back_from_its_xml():
-    from jobquill.core import scheduler
-    xml = ("<Task><Actions Context=\"Author\"><Exec><Command>\"C:\\Program Files\\cp\\jobquill-app.exe\"</Command>"
+    from jobgambit.core import scheduler
+    xml = ("<Task><Actions Context=\"Author\"><Exec><Command>\"C:\\Program Files\\cp\\jobgambit-app.exe\"</Command>"
            "<Arguments>mail &amp;</Arguments></Exec></Actions></Task>")
-    assert scheduler.from_xml(xml) == "C:\\Program Files\\cp\\jobquill-app.exe mail &"
+    assert scheduler.from_xml(xml) == "C:\\Program Files\\cp\\jobgambit-app.exe mail &"
 
 
 def test_desktop_notification_never_puts_mail_text_into_a_script(monkeypatch):

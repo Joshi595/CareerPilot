@@ -1,11 +1,11 @@
 # Third-party notices
 
-JobQuill (MIT) uses, adapts or was inspired by the following. Their licences apply to the parts named.
+JobGambit (MIT) uses, adapts or was inspired by the following. Their licences apply to the parts named.
 
 ## Ideas and adapted code (MIT)
 
 - **career-ops** (santifer and contributors, MIT): liveness check, reach-claim and scope checks, the "should I apply"
-  evaluation, ATS scanner endpoints, application-form rules. "career-ops" is a trademark of its owners; JobQuill is
+  evaluation, ATS scanner endpoints, application-form rules. "career-ops" is a trademark of its owners; JobGambit is
   not affiliated with it.
 - **ai-job-search** (Mads Lorentzen, MIT): reviewer pass, requirement coverage, layout checks, setup interview flow.
 - **JobFinderOS** (Matthew Price, MIT): career-neutral onboarding, target-company watchlist.
@@ -28,9 +28,9 @@ JobQuill (MIT) uses, adapts or was inspired by the following. Their licences app
 | keyring | MIT |
 | Apprise | BSD-2-Clause |
 | pypdf | BSD-3-Clause |
-| Alpine.js (bundled in `jobquill/app/static/vendor`) | MIT |
+| Alpine.js (bundled in `jobgambit/app/static/vendor`) | MIT |
 
-## Icons (bundled in `jobquill/app/static/icons.svg`)
+## Icons (bundled in `jobgambit/app/static/icons.svg`)
 
 - **Lucide** v0.460.0 (https://lucide.dev), ISC License:
 
@@ -46,7 +46,7 @@ JobQuill (MIT) uses, adapts or was inspired by the following. Their licences app
   > AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
   > PERFORMANCE OF THIS SOFTWARE.
 
-## Fonts (bundled in `jobquill/templates/fonts`)
+## Fonts (bundled in `jobgambit/templates/fonts`)
 
 - **Fira Sans** (Mozilla Foundation, Carrois Corporate): SIL Open Font License 1.1, see `OFL-FiraSans.txt`.
 - **Lato** (Łukasz Dziedzic): SIL Open Font License 1.1, see `OFL-Lato.txt`.

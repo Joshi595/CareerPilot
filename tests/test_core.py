@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from jobquill.core import ai, data, prompts
+from jobgambit.core import ai, data, prompts
 
 
 class Ping(BaseModel):
@@ -54,7 +54,7 @@ def test_claude_lean_call_and_main_model_tokens():
     assert "--system-prompt" in c.command({}) and "stream-json" in c.command({}) and "--verbose" in c.command({})
     assert c.command({}, "Tailor")[-2:] == ["--model", "opus"]  # standard: the documents themselves on Opus,
     assert c.command({}, "Review")[-2:] == ["--model", "sonnet"]  # every other step on Sonnet, the CLI's default never
-    from jobquill.core import apply
+    from jobgambit.core import apply
     assert {apply.Tailor.__name__, apply.Change.__name__, apply.Revision.__name__} <= ai.WRITE_STEPS  # a rename can't move them
     c.level = "premium"
     assert c.command({}, "Tailor")[-2:] == ["--model", "opus"]
@@ -128,7 +128,7 @@ def test_record_without_result_line_keeps_partial_usage():
 
 
 def test_db_migrates(tmp_path, monkeypatch):
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     con = data.db()
     assert con.execute("pragma user_version").fetchone()[0] == len(data.MIGRATIONS)
     con.execute("insert into jobs(key, title) values ('a', 'Nurse')")
@@ -136,8 +136,8 @@ def test_db_migrates(tmp_path, monkeypatch):
 
 
 def test_server_needs_token_and_local_host(tmp_path, monkeypatch):
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    from jobquill.app import server
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    from jobgambit.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1")
     # anyone on this computer can reach 127.0.0.1 (other user accounts too): the page holds the key only with the
     # launch code, which lives in this user's own data folder
@@ -152,8 +152,8 @@ def test_server_needs_token_and_local_host(tmp_path, monkeypatch):
 def test_pages_run_only_their_own_scripts(tmp_path, monkeypatch):
     """No inline scripts, no javascript: links, never inside another site's frame; links opened from the app carry no
     address (or ?t= key) with them."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    from jobquill.app import server
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    from jobgambit.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1")
     page = c.get(f"/?k={server.launch_code()}")
     assert "script-src 'self' 'unsafe-eval';" in page.headers["content-security-policy"] and page.headers["x-frame-options"] == "DENY"
@@ -166,8 +166,8 @@ def test_pages_run_only_their_own_scripts(tmp_path, monkeypatch):
 def test_launch_code_is_kept_and_a_second_start_opens_the_running_app(tmp_path, monkeypatch):
     """The code survives a restart (an open tab reloads fine); the browser opens a file holding it, never a command line
     with it; a second start finds the running app instead of starting another server on the same data."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    from jobquill.app import server
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    from jobgambit.app import server
     code = server.launch_code()
     assert code == server.launch_code() and len(code) >= 24
     page = server.write_opener(8791)
@@ -178,14 +178,14 @@ def test_launch_code_is_kept_and_a_second_start_opens_the_running_app(tmp_path, 
     assert server.running_port() is None
 
 
-def test_another_jobquill_on_the_old_port_is_not_ours(tmp_path, monkeypatch):
-    """The port in instance.json may now belong to another JobQuill (another account, a test home) or a squatter:
+def test_another_jobgambit_on_the_old_port_is_not_ours(tmp_path, monkeypatch):
+    """The port in instance.json may now belong to another JobGambit (another account, a test home) or a squatter:
     only one that proves it knows this folder's launch code is this one. The code is never sent to the port."""
     import io
     import urllib.parse
     import urllib.request
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    from jobquill.app import server
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    from jobgambit.app import server
     code, asked = server.launch_code(), []
 
     class Answer(io.BytesIO):
@@ -207,59 +207,89 @@ def test_another_jobquill_on_the_old_port_is_not_ours(tmp_path, monkeypatch):
 
 def test_linux_browsers_get_the_address_not_a_hidden_file(tmp_path, monkeypatch):
     """Snap browsers (Ubuntu's Firefox) can't open files in hidden folders like ~/.local/share."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    from jobquill.app import server
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    from jobgambit.app import server
     monkeypatch.setattr(server.sys, "platform", "linux")
     assert server.opener(8791).startswith("http://127.0.0.1:8791/?k=")
     monkeypatch.setattr(server.sys, "platform", "win32")
     assert server.opener(8791).startswith("file:")
 
 
-def test_moved_from_careerpilot(tmp_path, monkeypatch):
-    """The first start after the rename takes the CareerPilot install's data, documents and passwords along, once."""
+def _old_install(tmp_path, monkeypatch, store=None):
+    """A computer whose app-data, Documents and password store live under tmp_path; no real tasks are touched."""
     import keyring
-    from jobquill.core import moved
-    monkeypatch.delenv("JOBQUILL_HOME")
+    from jobgambit.core import moved
+    monkeypatch.delenv("JOBGAMBIT_HOME")
     monkeypatch.setattr(data, "folder", lambda name: tmp_path / "appdata" / name)
     monkeypatch.setattr(moved.Path, "home", lambda: tmp_path)
-    monkeypatch.setattr(moved, "_tasks", lambda: None)
-    store = {("CareerPilot", "__index__"): '["email_password"]', ("CareerPilot", "email_password"): "pw-12345"}
+    monkeypatch.setattr(moved, "_tasks", lambda old: None)
+    store = {} if store is None else store
     monkeypatch.setattr(keyring, "get_password", lambda s, n: store.get((s, n)))
     monkeypatch.setattr(keyring, "set_password", lambda s, n, v: store.__setitem__((s, n), v))
-    monkeypatch.setattr(keyring, "delete_password", lambda s, n: store.pop((s, n)))
-    (tmp_path / "appdata" / "CareerPilot").mkdir(parents=True)
-    (tmp_path / "appdata" / "CareerPilot" / "careerpilot.db").write_text("db")
-    (tmp_path / "Documents" / "CareerPilot").mkdir(parents=True)
-    assert data.home() == tmp_path / "appdata" / "JobQuill"  # whatever asks for the folder first
-    assert (tmp_path / "appdata" / "JobQuill" / "jobquill.db").read_text() == "db"
-    assert not (tmp_path / "appdata" / "CareerPilot").exists() and (tmp_path / "Documents" / "JobQuill").is_dir()
-    assert store == {("JobQuill", "__index__"): '["email_password"]', ("JobQuill", "email_password"): "pw-12345"}
-    (tmp_path / "appdata" / "CareerPilot").mkdir()  # a later CareerPilot folder is left alone
+    def delete(s, n):  # like the real store: deleting what isn't there raises
+        if store.pop((s, n), None) is None:
+            raise keyring.errors.PasswordDeleteError(n)
+    monkeypatch.setattr(keyring, "delete_password", delete)
+    return moved, store
+
+
+@pytest.mark.parametrize("old, db", [("CareerPilot", "careerpilot.db"), ("JobQuill", "jobquill.db")])
+def test_moved_from_old_name(tmp_path, monkeypatch, old, db):
+    """The first start after a rename takes the old install's data, documents and passwords along, once."""
+    moved, store = _old_install(tmp_path, monkeypatch, {(old, "__index__"): '["email_password"]', (old, "email_password"): "pw-12345"})
+    (tmp_path / "appdata" / old).mkdir(parents=True)
+    (tmp_path / "appdata" / old / db).write_text("db")
+    (tmp_path / "Documents" / old).mkdir(parents=True)
+    assert data.home() == tmp_path / "appdata" / "JobGambit"  # whatever asks for the folder first
+    assert (tmp_path / "appdata" / "JobGambit" / "jobgambit.db").read_text() == "db"
+    assert not (tmp_path / "appdata" / old).exists() and (tmp_path / "Documents" / "JobGambit").is_dir()
+    assert store == {("JobGambit", "__index__"): '["email_password"]', ("JobGambit", "email_password"): "pw-12345"}
+    (tmp_path / "appdata" / old).mkdir()  # a later old folder is left alone
     moved.run()
-    assert (tmp_path / "appdata" / "CareerPilot").is_dir()
+    assert (tmp_path / "appdata" / old).is_dir()
+
+
+def test_moved_prefers_newest_old_name(tmp_path, monkeypatch):
+    """A computer that still has a CareerPilot folder next to its JobQuill one: the JobQuill data is the current one."""
+    _old_install(tmp_path, monkeypatch)
+    for old, value in (("JobQuill", "new"), ("CareerPilot", "old")):
+        (tmp_path / "appdata" / old).mkdir(parents=True)
+        (tmp_path / "appdata" / old / f"{old.lower()}.db").write_text(value)
+    assert data.home() == tmp_path / "appdata" / "JobGambit"
+    assert (tmp_path / "appdata" / "JobGambit" / "jobgambit.db").read_text() == "new"
+    assert (tmp_path / "appdata" / "CareerPilot" / "careerpilot.db").read_text() == "old"
+
+
+def test_moved_skips_instance_home(tmp_path, monkeypatch):
+    """A test or scratch home (JOBGAMBIT_HOME) never moves the computer's real install."""
+    moved, _ = _old_install(tmp_path, monkeypatch)
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path / "scratch"))
+    (tmp_path / "appdata" / "JobQuill").mkdir(parents=True)
+    moved.run()
+    assert (tmp_path / "appdata" / "JobQuill").is_dir() and not (tmp_path / "appdata" / "JobGambit").exists()
 
 
 
 
 def test_tmp_home_isolated(tmp_path, monkeypatch):
     """A test or scratch home never reads or writes the real keyring service, task or browser port."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     import keyring
-    from jobquill.core import scheduler, secrets
+    from jobgambit.core import scheduler, secrets
     store, used = {}, set()
     monkeypatch.setattr(keyring, "get_password", lambda s, n: used.add(s) or store.get((s, n)))
     monkeypatch.setattr(keyring, "set_password", lambda s, n, v: used.add(s) or store.__setitem__((s, n), v))
     monkeypatch.setattr(keyring, "delete_password", lambda s, n: used.add(s) or store.pop((s, n), None))
     secrets.put("email_password", "pw-12345")
     secrets.get("email_password"), secrets.names(), secrets.redact("x"), secrets.delete("email_password"), secrets.delete_all()
-    assert used == {f"JobQuill-{data.instance()}"} and len(data.instance()) == 8
+    assert used == {f"JobGambit-{data.instance()}"} and len(data.instance()) == 8
     assert scheduler.name().endswith(data.instance()) and str(tmp_path.resolve()) in scheduler.command()
-    assert scheduler.name("mail").startswith("JobQuill email check") and "mail" in scheduler.command("mail")
+    assert scheduler.name("mail").startswith("JobGambit email check") and "mail" in scheduler.command("mail")
 
 
 def test_counts(tmp_path, monkeypatch):
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    from jobquill.app import server
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    from jobgambit.app import server
     c = TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
     want = {"board": 0, "less": 0, "applications": 0, "needs": 0}
     assert c.get("/api/counts").json() == want
@@ -288,8 +318,8 @@ def _strict_ok(s, path="$"):
 def test_codex_schemas_are_strict_and_answers_come_back():
     import importlib
     import pkgutil
-    import jobquill
-    for m in pkgutil.walk_packages(jobquill.__path__, "jobquill."):
+    import jobgambit
+    for m in pkgutil.walk_packages(jobgambit.__path__, "jobgambit."):
         if ".countries." not in m.name:
             importlib.import_module(m.name)
 
@@ -297,13 +327,15 @@ def test_codex_schemas_are_strict_and_answers_come_back():
         for sub in cls.__subclasses__():
             yield sub
             yield from models(sub)
-    found = {m for m in models(BaseModel) if m.__module__.startswith("jobquill")}
+    found = {m for m in models(BaseModel) if m.__module__.startswith("jobgambit")}
     assert len(found) > 20
     for m in found:
         _strict_ok(ai.strict(m.model_json_schema()), m.__name__)
 
-    from jobquill.core.profile import Profile
+    from jobgambit.core.profile import Profile
     schema = Profile.model_json_schema()
+    defs = ai.strict(schema)["$defs"]  # a field named "title" is not the schema's title annotation: it stays
+    assert "title" in defs["Section"]["required"] and "title" in defs["Entry"]["properties"]
     answer = {"basics": {"name": "Ana", "headline": None, "email": None, "phone": None, "location": None, "address": None, "dob": None,
                          "nationality": None, "links": [{"key": "github", "value": "gh/ana"}], "photo": None},
               "summaries": [{"key": "ml", "value": "ML engineer"}], "skills": [{"key": "Languages", "value": ["Python"]}],
@@ -319,7 +351,7 @@ def test_codex_schemas_are_strict_and_answers_come_back():
 def test_backup_leaves_out_the_run_logs():
     import io
     import zipfile
-    from jobquill.core import system
+    from jobgambit.core import system
     (data.home() / "logs" / "ai" / "2026-10-26").mkdir(parents=True)
     (data.home() / "logs" / "ai" / "2026-10-26" / "1.jsonl").write_text("{}", encoding="utf-8")
     (data.home() / "notes.txt").write_text("kept", encoding="utf-8")

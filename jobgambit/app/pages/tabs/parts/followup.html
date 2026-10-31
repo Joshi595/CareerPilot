@@ -1,0 +1,26 @@
+<!-- after the feedback (Practice): the interviewer's next question on the topic, and the person's own questions -->
+<div class="stack follow-up">
+  <template x-if="followUp()">
+    <div>
+      <b x-text="t('practice.follow_title')"></b>
+      <p class="follow-q" x-text="followUp().question"></p>
+      <p class="small muted" x-text="followUp().why"></p>
+      <button class="btn sm primary" :disabled="!!busy" @click="answerIt()" x-text="t('practice.answer_it')"></button>
+    </div>
+  </template>
+  <div class="stack">
+    <b x-text="t('practice.unclear')"></b>
+    <template x-for="(turn, i) in talk[open.question] || []" :key="i">
+      <div class="talk">
+        <p class="small muted" x-text="turn.ask"></p>
+        <p class="reply" x-text="turn.answer"></p>
+        <blockquote class="better reply" x-text="t('practice.example') + ' ' + turn.example"></blockquote>
+      </div>
+    </template>
+    <div class="inline">
+      <input type="text" x-model="askText" @keydown.enter="askText.trim() && !busy && explain()"
+             :placeholder="t('practice.ask_placeholder')" :aria-label="t('practice.unclear')">
+      <button class="btn sm" :disabled="!askText.trim() || !!busy" @click="explain()" x-text="t('practice.ask_btn')"></button>
+    </div>
+  </div>
+</div>

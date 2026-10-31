@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.1 (2026-10-31)
+
+- JobQuill is now **JobGambit**: the old name belongs to another product. The first start moves your data folder,
+  documents and saved passwords over; the scheduled tasks are made again under the new name.
+- Coming from 0.13–0.14: Help › Update can't install the renamed app. Run the installer once more (README), it removes
+  the old JobQuill copy and keeps your data.
+
 ## 0.13.0 (2026-10-24)
 
 - **CareerPilot is now JobQuill.** Thousands of projects on GitHub share the old name. The command is now `jobquill`,

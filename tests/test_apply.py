@@ -1,4 +1,4 @@
-from jobquill.core import apply, check, posting, render
+from jobgambit.core import apply, check, posting, render
 
 P = {"summaries": {"main": "S"}, "education": [], "languages": [], "skills": {"A": ["x"], "B": ["y", "z"]},
      "experience": [{"id": "e1", "org": "C", "title": "R", "bullets": [{"id": "b1", "text": "one"}, {"id": "b2", "text": "two"},
@@ -44,7 +44,7 @@ def test_posting_cannot_leave_its_fence():
 def test_placeholders_are_filled_once():
     """A value that contains another placeholder stays as it is: a CV line "{posting}" must not pull the posting in
     outside its <untrusted> fence, and a posting can't pull in the person's own fields."""
-    from jobquill.core import prompts
+    from jobgambit.core import prompts
     out = prompts.build("tailor", factsheet="my line {posting}", posting="ad text {factsheet} {note}", note="NOTE")
     assert "my line {posting}" in out and "ad text {factsheet} {note}" in out and out.count("ad text") == 1
 
@@ -93,7 +93,7 @@ def test_every_design_renders_both_examples():
     from pypdf import PdfReader
     import io
     for person, country in [("alex-engineer-de", "DE"), ("sam-nurse-uk", "GB")]:
-        cv = YAML(typ="safe").load(Path("jobquill/examples") / person / "master_cv.yaml")
+        cv = YAML(typ="safe").load(Path("jobgambit/examples") / person / "master_cv.yaml")
         for d in render.designs():
             text = "".join(p.extract_text() for p in PdfReader(io.BytesIO(render.cv_pdf(cv, d, "en", country))).pages)
             assert cv["basics"]["name"] in text and cv["experience"][0]["title"].split(",")[0] in text, (person, d)
@@ -103,7 +103,7 @@ def test_every_design_renders_both_examples():
 
 def test_no_review_keeps_the_letter(tmp_path, monkeypatch):
     """Review depth 'none' (just show me the PDFs) hides every card; the letter must still be the full draft."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     letter = {"subject": "S", "salutation": "Dear team,", "recipient": [], "paragraphs": ["One.", "Two."]}
     prop = {"items": [], "letter": [dict(id="p1", old="", new="One.", flag=False), dict(id="p2", old="", new="Two.", flag=False)],
             "letter_meta": letter, "language": "en"}
@@ -116,7 +116,7 @@ def test_no_review_keeps_the_letter(tmp_path, monkeypatch):
 
 def test_change_text_after_the_pdfs(tmp_path, monkeypatch):
     """Documents step -> Change text: every shown line is a card; only edited lines change, nothing else is stored."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     monkeypatch.setattr(apply.posting, "get", lambda key: {"type": "full_time", "title": "T", "description": "d"})
     monkeypatch.setattr(apply.pf, "profile", lambda: type("Prof", (), {"model_dump": lambda self: P})())
     monkeypatch.setattr(apply, "build", lambda key: {"stage": "ready"})
@@ -136,7 +136,7 @@ def test_change_text_after_the_pdfs(tmp_path, monkeypatch):
 
 def test_ai_box_on_the_documents(tmp_path, monkeypatch):
     """Documents step -> AI box: the request and the failed checks go to one run; its edits of shown lines are applied."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     monkeypatch.setattr(apply.posting, "get", lambda key: {"type": "full_time", "title": "T", "description": "d"})
     monkeypatch.setattr(apply.pf, "profile", lambda: type("Prof", (), {"model_dump": lambda self: P})())
     monkeypatch.setattr(apply, "build", lambda key: {"stage": "ready"})
@@ -176,7 +176,7 @@ def test_long_letter_still_fits_one_page(monkeypatch):
 
 def test_draft_is_one_tailor_run_that_also_reads_the_job(tmp_path, monkeypatch):
     """No separate fit check: the tailor run returns the job details, stored as fit.json; prompts have no unfilled parts."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     monkeypatch.setattr(apply.posting, "get", lambda key: {"score": 4, "description": "posting"})
     monkeypatch.setattr(apply.pf, "profile", lambda: type("Prof", (), {"model_dump": lambda self: P})())
     monkeypatch.setattr(apply, "prefs", lambda: apply.pf.Preferences())
@@ -207,8 +207,8 @@ def test_draft_is_one_tailor_run_that_also_reads_the_job(tmp_path, monkeypatch):
 def test_start_over_with_a_wish_and_another_language(tmp_path, monkeypatch):
     """Start over: the draft is thrown away (ledger kept), the job is new again; the next draft takes the person's note and
     language. The Documents AI box asked for another language answers 'restart' instead of editing."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
-    from jobquill.core.data import db
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
+    from jobgambit.core.data import db
     with db() as con:
         con.execute("insert into jobs (key, status, title) values ('k', 'applying', 'T')")
         con.execute("insert into needs (job_key) values ('k')")
@@ -256,8 +256,8 @@ def test_start_over_with_a_wish_and_another_language(tmp_path, monkeypatch):
 def test_every_ai_call_lands_in_the_ledger(tmp_path, monkeypatch):
     """A real CLI call (here: python printing JSON) is recorded with its step and job; a failed one with its error."""
     import sys
-    from jobquill.core import ai
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    from jobgambit.core import ai
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
 
     class Fake(ai.Agent):
         name, label, code = "fake", "Fake", ""
@@ -341,7 +341,7 @@ def test_one_draft_at_a_time_and_stop_on_blocker(monkeypatch):
 
 
 def test_a_letter_must_fill_its_one_page(tmp_path):
-    from jobquill.core import check, render
+    from jobgambit.core import check, render
     basics = {"name": "Sam Sample", "email": "sam@example.com", "phone": "+44 7700 900000", "location": "Leeds"}
     para = lambda n: " ".join(["Careful handover notes keep every patient safe on a busy ward."] * n)
 
@@ -367,9 +367,9 @@ def test_projects_are_reordered_for_a_clean_page_break(monkeypatch):
 
 def test_tidy_never_places_projects_worse_on_a_real_cv():
     import copy
-    from jobquill.core import render
+    from jobgambit.core import render
     from ruamel.yaml import YAML
-    cv = YAML(typ="safe").load(open("jobquill/examples/sam-nurse-uk/master_cv.yaml", encoding="utf-8"))
+    cv = YAML(typ="safe").load(open("jobgambit/examples/sam-nurse-uk/master_cv.yaml", encoding="utf-8"))
     cv["projects"] = [{"id": f"p{i}", "title": f"Project {i}", "org": "", "start": "2023-01", "end": "2024-01",
                        "bullets": [{"id": f"p{i}b{j}", "text": f"Project{i}line{j} audited ward handovers and cut missed checks.", "tags": []}
                                    for j in range(n)]} for i, n in enumerate((7, 2, 5))]

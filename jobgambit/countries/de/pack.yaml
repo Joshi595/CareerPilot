@@ -1,0 +1,124 @@
+# Germany pack. Conventions follow the job's country, not the person's.
+name: Germany
+languages: [de, en]
+conventions:
+  paper: a4
+  photo: optional        # shown when the profile has a photo; common in Germany, never required
+  dob: optional          # shown when the profile has it
+  cv_pages: 2
+  letter: formal         # DIN 5008-style: address block, place and date on the right
+# Local names of job types (matched in titles, lower case); added to the worldwide rules.
+job_types:
+  student: [werkstudent, werkstudierend, studentische, studentische hilfskraft, hiwi]
+  internship: [praktikum, praktikant, pflichtpraktikum]
+  apprenticeship: [ausbildung, azubi, duales studium]
+  thesis: [abschlussarbeit, masterarbeit, bachelorarbeit, thesis]
+# Words searched in front of the person's titles and keywords for each job type they chose (with the worldwide ones).
+search_words:
+  student: [Werkstudent]
+  internship: [Praktikum, Pflichtpraktikum]   # Pflichtpraktikum only for people who need a mandatory internship
+  thesis: [Abschlussarbeit, Masterarbeit, Bachelorarbeit]   # narrowed by the thesis level they gave
+  apprenticeship: [Ausbildung]
+  graduate: [Trainee]
+# A posting written in English that still demands fluent German (the language check also reads the posting's own language).
+language_required:
+  German: '(flie(ss|ß)end|verhandlungssicher|sehr gut| gut| sicher| solide|ausgezeichnet|exzellent|muttersprach| b2 | c1 )\w*(?:(?!plus|vorteil|wünschenswert|wuenschenswert|nice|desirable|prefer|advantag|benefic|basic|grundkenntnis|basis|optional)[\w\s]){0,40}(deutsch(kenntnis|sprach)\w*|deutsch(?= )|deutsche[nr]? sprache)(?![\w\s]{0,30}(von vorteil|wünschenswert|wuenschenswert|ein plus|nice to have|a plus|desirable|preferred))|(deutsch(kenntnis|sprach)\w*|deutsch(?= )|deutsche[nr]? sprache)(?:(?!plus|vorteil|wünschenswert|wuenschenswert|nice|desirable|prefer|advantag|benefic|basic|grundkenntnis|basis|optional)[\w\s]){0,30}( c1 | c2 | b2 |flie(ss|ß)end|verhandlungssicher|muttersprach|sehr gut|erforderlich|vorausgesetzt|zwingend)|(fluent|excellent|very good|good|strong|business|confident|native|proficient| b2 | c1 )(?:(?!plus|vorteil|wünschenswert|wuenschenswert|nice|desirable|prefer|advantag|benefic|basic|grundkenntnis|basis|optional)[\w\s]){0,40}german(?!y)(?![\w\s]{0,30}(is a plus|a plus|nice to have|desirable|preferred|beneficial|an advantage))|german(?!y)(?:(?!plus|vorteil|wünschenswert|wuenschenswert|nice|desirable|prefer|advantag|benefic|basic|grundkenntnis|basis|optional)[\w\s]){0,30}( c1 | c2 | b2 |fluent|native|mandatory|required|is a must)(?![\w\s]{0,30}(is a plus|a plus|nice to have|desirable|preferred|beneficial|an advantage))'
+# Research institutes, universities and student-job boards, scanned for everyone searching in Germany (Settings ›
+# Career sites, origin "pack"). page: "<list url>#re:<regex the posting links match>". Each returned postings on 2026-10-21.
+# Not scannable then (job lists built by JavaScript, login or 404): KIT, TU Darmstadt, Uni Stuttgart (uses stellenwerk),
+# TUHH, LUH Hannover, Max Planck, Helmholtz, FZ Jülich, DESY, HZB, DKFZ, DFKI, EURAXESS, academics.de, Interamt,
+# and the job pages of LMU, Hamburg, Heidelberg, Tübingen, Ulm, Freiburg, Paderborn, Siegen, Saarland, RPTU, OTH Regensburg.
+# Student-job boards checked 2026-10-21 and left out: jobmensa.de and studentjob.de (lists built by JavaScript), absolventa.de
+# (its Praktikum/Abschlussarbeit lists name no employer). Student jobs come through the boards' type-word searches instead.
+# types: a site scanned only for people who look for one of these job types.
+career_sites:
+  - {name: Fraunhofer, kind: successfactors, ref: "https://jobs.fraunhofer.de"}
+  - {name: DLR, kind: successfactors, ref: "https://jobs.dlr.de"}
+  - {name: karriere.nrw (RWTH and NRW universities), kind: karriere_nrw, ref: "https://api.karriere.nrw/v1.0/search/"}
+  - {name: TUM (academic staff), kind: page, ref: 'https://portal.mytum.de/jobs/wissenschaftler/#re:/NewsArticle_'}
+  - {name: TUM (student jobs), kind: page, ref: 'https://portal.mytum.de/schwarzesbrett/hiwi_stellen/#re:/NewsArticle_', types: [student]}
+  - {name: TU Berlin, kind: page, ref: 'https://www.jobs.tu-berlin.de/stellenausschreibungen#re:/stellenausschreibungen/\d+'}
+  - {name: TU Dresden, kind: page, ref: 'https://tu-dresden.de/tu-dresden/arbeiten-an-der-tud/stellenangebote/stellenangebote#re:StellAus/stelle\.asp'}
+  - {name: FAU Erlangen-Nürnberg, kind: page, ref: 'https://www.jobs.fau.de/jobs/#re:/jobs/[^/]+-fau-\d+'}
+  - {name: TU Braunschweig, kind: page, ref: 'https://www.tu-braunschweig.de/stellenangebote/wimi#re:/stellenangebote/wimi/.'}
+  - {name: Universität Bonn, kind: page, ref: 'https://www.uni-bonn.de/de/universitaet/arbeiten-an-der-uni/stellenangebote#re:/stellenausschreibungen/.'}
+  - {name: stellenwerk Hamburg, kind: page, ref: 'https://www.stellenwerk.de/hamburg/#re:stellenwerk\.de/hamburg/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Berlin, kind: page, ref: 'https://www.stellenwerk.de/berlin/#re:stellenwerk\.de/berlin/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Darmstadt, kind: page, ref: 'https://www.stellenwerk.de/darmstadt/#re:stellenwerk\.de/darmstadt/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Dortmund, kind: page, ref: 'https://www.stellenwerk.de/dortmund/#re:stellenwerk\.de/dortmund/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Bochum, kind: page, ref: 'https://www.stellenwerk.de/bochum/#re:stellenwerk\.de/bochum/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Köln, kind: page, ref: 'https://www.stellenwerk.de/koeln/#re:stellenwerk\.de/koeln/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Leipzig, kind: page, ref: 'https://www.stellenwerk.de/leipzig/#re:stellenwerk\.de/leipzig/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk München, kind: page, ref: 'https://www.stellenwerk.de/muenchen/#re:stellenwerk\.de/muenchen/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Stuttgart, kind: page, ref: 'https://www.stellenwerk.de/stuttgart/#re:stellenwerk\.de/stuttgart/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  - {name: stellenwerk Aachen, kind: page, ref: 'https://www.stellenwerk.de/aachen/#re:stellenwerk\.de/aachen/[a-z0-9-]{25,}$', types: [student, internship, thesis, graduate]}
+  # Universities and research institutes whose posting lists JobGambit reads (found with GERiT, the DFG's directory of
+  # German research institutions, 2026-10-29; most other lists are built by JavaScript or sit on portals). Their
+  # postings also reach the Board through the federal employment agency's research search (arbeitsagentur research).
+  - {name: 'Carl von Ossietzky Universität Oldenburg', kind: page, ref: 'https://uol.de/jobs#re:uol\.de/en/job/[^/?#]+', types: [phd]}
+  - {name: 'Charité - Universitätsmedizin Berlin', kind: page, ref: 'https://karriere.charite.de/stellenangebote#re:karriere\.charite\.de/stellenangebote/detail/[^/?#]+', types: [phd]}
+  - {name: 'Constructor University Bremen', kind: workday, ref: 'https://constructoruniversity.wd103.myworkdayjobs.com/Careers', types: [phd]}
+  - {name: 'Deutsches Archäologisches Institut (DAI)', kind: page, ref: 'https://www.dainst.org/karriere/bewerben-am-dai#re:www\.dainst\.org/karriere/bewerben\-am\-dai/noslug/[^/?#]+', types: [phd]}
+  - {name: 'Europäisches Laboratorium für Molekularbiologie (EMBL)', kind: workday, ref: 'https://embl.wd103.myworkdayjobs.com/EMBL', types: [phd]}
+  - {name: 'Ferdinand-Braun-Institut gGmbH, Leibniz-Institut für Höchstfrequenztechnik (FBH)', kind: softgarden, ref: 'fbh-berlin', types: [phd]}
+  - {name: 'Frankfurt Institute for Advanced Studies (FIAS)', kind: page, ref: 'https://fias.institute/#re:fias\.institute/de/das\-fias/freie\-stellen/[^/?#]+', types: [phd]}
+  - {name: 'GSI Helmholtzzentrum für Schwerionenforschung', kind: page, ref: 'https://www.gsi.de/jobskarriere#re:www\.gsi\.de/jobskarriere/stellenangebote/stellenangebote_details/[^/?#]+', types: [phd]}
+  - {name: 'Heidelberger Institut für Theoretische Studien (HITS)', kind: softgarden, ref: 'hits-jobs', types: [phd]}
+  - {name: 'Helmholtz-Zentrum Dresden-Rossendorf (HZDR)', kind: page, ref: 'https://www.hzdr.de/db/!JobList?pNid=490#re:www\.hzdr\.de/db/[^/?#]+\?pNid=[^&]*&pOid=[^&]*&pContLang=[^&]*', types: [phd]}
+  - {name: 'Katholische Universität Eichstätt-Ingolstadt', kind: page, ref: 'https://www.ku.de/en/the-ku/job-offers#re:stellen\.ku\.de/jobposting/[^/?#]+\?ref=[^&]*', types: [phd]}
+  - {name: 'Leibniz-Institut für Kristallzüchtung (IKZ)', kind: softgarden, ref: 'ikz-berlin', types: [phd]}
+  - {name: 'Max-Born-Institut für Nichtlineare Optik und Kurzzeitspektroskopie (MBI)', kind: page, ref: 'https://mbi-berlin.de/de/karriere#re:short\.sg/j/[^/?#]+', types: [phd]}
+  - {name: 'Max-Planck-Institut für Mikrostrukturphysik', kind: softgarden, ref: 'mpi-hallempg', types: [phd]}
+  - {name: 'Otto-von-Guericke-Universität Magdeburg', kind: page, ref: 'https://www.ovgu.de/Karriere_wissenschaftlichesPersonal.html#re:ovgu\.b\-ite\.careers/jobposting/[^/?#]+\?ref=[^&]*', types: [phd]}
+  - {name: 'Technische Universität Chemnitz', kind: page, ref: 'https://www.tu-chemnitz.de/tu/stellen.html#re:jobs\.tu\-chemnitz\.de/jobposting/[^/?#]+', types: [phd]}
+  - {name: 'Universität Passau', kind: page, ref: 'https://www.uni-passau.de/en/university/current-vacancies#re:www\.uni\-passau\.de/fileadmin/dokumente/beschaeftigte/Stellenangebote/[^/?#]+', types: [phd]}
+  - {name: 'Weierstraß-Institut für Angewandte Analysis und Stochastik (WIAS)', kind: softgarden, ref: 'wias-berlin', types: [phd]}
+  - {name: 'Zeppelin Universität Friedrichshafen', kind: softgarden, ref: 'zeppelinuniversitaet', types: [phd]}
+  # Found by hand or by recognising the job system a page embeds (d.vinci, B-ITE, SuccessFactors…), 2026-10-29.
+  - {name: 'Bauhaus Luftfahrt (Forschungsinstitut)', kind: dvinci, ref: 'bauhaus-luftfahrt-career.dvinci-hr.com', types: [phd]}
+  - {name: 'CISPA - Helmholtz-Zentrum für Informationssicherheit', kind: page, ref: 'https://career.cispa.de/jobs#re:career\.cispa\.de/jobs/[^/?#]+', types: [phd]}
+  - {name: 'Deutsches Zentrum für Neurodegenerative Erkrankungen (DZNE, Helmholtz)', kind: dvinci, ref: 'jobs.dzne.de', types: [phd]}
+  - {name: 'FernUniversität in Hagen', kind: successfactors, ref: 'https://jobs.fernuni-hagen.de', types: [phd]}
+  - {name: 'Gottfried Wilhelm Leibniz Universität Hannover', kind: page, ref: 'https://www.uni-hannover.de/universitaet/stellenangebote-arbeit-an-der-uni/jobboerse#re:www\.uni\-hannover\.de/jobs/id/[^/?#]+', types: [phd]}
+  - {name: 'Helmholtz-Zentrum für Infektionsforschung (HZI)', kind: successfactors, ref: 'https://jobs.helmholtz-hzi.de', types: [phd]}
+  - {name: 'Helmholtz-Zentrum hereon', kind: successfactors, ref: 'https://jobs2.hereon.de', types: [phd]}
+  - {name: 'IMMS Institut für Mikroelektronik- und Mechatronik-Systeme gGmbH', kind: bite, ref: 'imms-institut:praktika-listing', types: [phd]}
+  - {name: 'Institut für Arbeitsschutz der Deutschen Gesetzlichen Unfallversicherung (IFA)', kind: bite, ref: 'dguv:main-listing-2', types: [phd]}
+  - {name: 'Karlsruher Institut für Technologie', kind: dvinci, ref: 'jobs.pse.kit.edu', types: [phd]}
+  - {name: 'Kühne Logistics University - The KLU Hamburg', kind: personio, ref: 'klu', types: [phd]}
+  - {name: 'Laser Zentrum Hannover (LZH, Forschungsinstitut)', kind: page, ref: 'https://www.lzh.de/stellenangebote#re:www\.lzh\.de/index\.php/stellenangebot/[^/?#]+', types: [phd]}
+  - {name: 'Leibniz-Forschungsinstitut für Molekulare Pharmakologie (FMP)', kind: softgarden, ref: 'leibniz-fmp', types: [phd]}
+  - {name: 'Leibniz-Institut für Alternsforschung - Fritz-Lipmann-Institut e.V. (FLI)', kind: bite, ref: 'leibniz-institut-fuer-alternsforschung:main-listing-2025', types: [phd]}
+  - {name: 'Leibniz-Institut für Plasmaforschung und Technologie e.V. (INP)', kind: bite, ref: 'leibniz-institut-plasmaforschung-technologie-inp:main-listing-de', types: [phd]}
+  - {name: 'Leibniz-Institut für Werkstofforientierte Technologien IWT', kind: softgarden, ref: 'iwt-bremen', types: [phd]}
+  - {name: 'Leibniz-Zentrum für Marine Tropenforschung (ZMT)', kind: page, ref: 'https://www.leibniz-zmt.de/de/stellenangebote.html#re:www\.leibniz\-zmt\.de/de/stellenangebote/[^/?#]+', types: [phd]}
+  - {name: 'Max-Planck-Institut für Chemische Physik fester Stoffe (MPI CPfS)', kind: bite, ref: 'max-planck-institut-chemische-physik-fester-stoffe:main-listing', types: [phd]}
+  - {name: 'Max-Planck-Institut für Immunbiologie und Epigenetik', kind: bite, ref: 'max-planck-institut-immunbiologie-epigenetik:main-listing-en', types: [phd]}
+  - {name: 'Max-Planck-Institut für Kolloid- und Grenzflächenforschung', kind: bite, ref: 'max-planck-institut-fuer-kolloid-grenzflaechenforschung:main-listing', types: [phd]}
+  - {name: 'Max-Planck-Institut für Nachhaltige Materialien GmbH (MPI SusMat)', kind: bite, ref: 'max-planck-institut-fuer-eisenforschung:main-listing', types: [phd]}
+  - {name: 'Max-Planck-Institut für Physik (Werner-Heisenberg-Institut)', kind: bite, ref: 'max-planck-institut-fuer-physik:main-listing', types: [phd]}
+  - {name: 'Max-Planck-Institut für Quantenoptik (MPQ)', kind: bite, ref: 'max-planck-institut-fuer-quantenoptik:main-listing', types: [phd]}
+  - {name: 'Max-Planck-Institut für Radioastronomie', kind: bite, ref: 'max-planck-institut-fuer-radioastronomie:main-listing', types: [phd]}
+  - {name: 'Max-Planck-Institut für molekulare Pflanzenphysiologie (MPI-MP)', kind: bite, ref: 'max-planck-institut-molekulare-pflanzenphysiologie:main-listing', types: [phd]}
+  - {name: 'Medizinische Hochschule Brandenburg Theodor Fontane', kind: page, ref: 'https://www.mhb-fontane.de/de/job-angebote#re:jobs\.mhb\-fontane\.de/[^/?#]+\?id=[^&]*', types: [phd]}
+  - {name: 'Museum für Naturkunde - Leibniz-Institut für Evolutions- und Biodiversitätsforschung (MfN)', kind: bite, ref: 'naturkundemuseum:wissenschaftliche-v5', types: [phd]}
+  - {name: 'Otto-Friedrich-Universität Bamberg', kind: bite, ref: 'universitaet-bamberg:niwi-listing', types: [phd]}
+  - {name: 'Philipps-Universität Marburg', kind: bite, ref: 'uni-marburg:01_prof-de', types: [phd]}
+  - {name: 'Pädagogische Hochschule Ludwigsburg', kind: bite, ref: 'paedagogische-hochschule-ludwigsburg:wissenschaft-listing', types: [phd]}
+  - {name: 'Rheinland-Pfälzische Technische Universität Kaiserslautern-Landau', kind: page, ref: 'https://rptu.de/stellenangebote/#re:jobs\.rptu\.de/jobposting/[^/?#]+', types: [phd]}
+  - {name: 'Ruhr-Universität Bochum', kind: bite, ref: 'ruhr-universitaet-bochum:main-listing', types: [phd]}
+  - {name: 'Stiftung Tierärztliche Hochschule Hannover', kind: bite, ref: 'tieraerztliche-hs-hannover:main-listing', types: [phd]}
+  - {name: 'Technische Universität Clausthal', kind: bite, ref: 'technische-universitaet-clausthal:ausbildung-listing', types: [phd]}
+  - {name: 'Technische Universität Ilmenau', kind: bite, ref: 'tu-ilmenau:main-listing-v5', types: [phd]}
+  - {name: 'Technische Universität Nürnberg', kind: bite, ref: 'technische-uni-nuernberg:profs-listing-de', types: [phd]}
+  - {name: 'Universität Hohenheim', kind: bite, ref: 'universitaet-hohenheim:wissenschaftliches-personal-listing', types: [phd]}
+  - {name: 'Universität Kassel', kind: bite, ref: 'uni-kassel:prof', types: [phd]}
+  - {name: 'Universität Mannheim', kind: page, ref: 'https://www.uni-mannheim.de/en/about/working-at-the-university/job-vacancies/#re:www\.uni\-mannheim\.de/media/Universitaet/Dokumente/Ausschreibungen_Stellenanzeigen/[^/?#]+', types: [phd]}
+  - {name: 'Universität Münster', kind: bite, ref: 'uni-muenster:professuren-listing', types: [phd]}
+  - {name: 'Universität Osnabrück', kind: bite, ref: 'universitaet-osnabrueck:wissenschaftliches-personal-listing', types: [phd]}
+  - {name: 'Universität Potsdam', kind: page, ref: 'https://www.uni-potsdam.de/de/verwaltung/dezernat3/stellenausschreibungen/verwaltung-und-bibliotheksdienst#re:www\.uni\-potsdam\.de/fileadmin/projects/verwaltung/docs/Dezernat3/Ausschreibungen/3_MTV/[^/?#]+', types: [phd]}
+  - {name: 'Universität Siegen', kind: successfactors, ref: 'https://jobs.uni-siegen.de', types: [phd]}
+  - {name: 'Universität Stuttgart', kind: successfactors, ref: 'https://careers.uni-stuttgart.de', types: [phd]}
+  - {name: 'Universität Witten/Herdecke', kind: softgarden, ref: 'uni-wh', types: [phd]}
+  - {name: 'Universität zu Lübeck', kind: bite, ref: 'universitaet-zu-luebeck:hochschullehrende-hochschulleitung-listing', types: [phd]}
+  - {name: 'ZEW - Leibniz-Zentrum für Europäische Wirtschaftsforschung GmbH', kind: bite, ref: 'zew:mitarbeiter', types: [phd]}

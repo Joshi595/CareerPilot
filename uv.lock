@@ -661,8 +661,8 @@ wheels = [
 ]
 
 [[package]]
-name = "jobquill"
-version = "0.14.3"
+name = "jobgambit"
+version = "0.16.1"
 source = { editable = "." }
 dependencies = [
     { name = "apprise" },

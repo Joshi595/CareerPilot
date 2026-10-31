@@ -1,0 +1,38 @@
+<!-- Ask JobGambit: one sentence -> proposed changes to settings, CV/letter instructions, application details and the
+     CV itself. Nothing is saved until Apply; each area can be left out. (Settings and Profile show this part.) -->
+<section class="panel ask" x-data="askBox" :aria-label="t('ask.title')">
+  <form class="inline" @submit.prevent="ask()">
+    <label class="sr-only" :for="writing ? 'ask-w' : 'ask-box'" x-text="t('ask.label')"></label>
+    <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-sparkles"/></svg>
+    <input :id="writing ? 'ask-w' : 'ask-box'" x-model="q" :placeholder="t(writing ? 'ask.writing_placeholder' : 'ask.placeholder')" autocomplete="off">
+    <button class="btn primary" :disabled="asking || !q.trim()" x-text="asking ? t('ask.thinking') : t('ask.go')"></button>
+  </form>
+  <div class="chips" x-show="!answer" role="group" :aria-label="t('ask.examples')">
+    <template x-for="c in t(writing ? 'ask.writing_chips' : 'ask.chips')" :key="c">
+      <button type="button" class="chip" @click="q = c; ask()" :disabled="asking" x-text="c"></button>
+    </template>
+  </div>
+  <div class="msg bad" x-show="err" role="alert" x-text="err"></div>
+  <template x-if="answer">
+    <div class="answer stack" aria-live="polite">
+      <p x-text="answer.reply"></p>
+      <template x-for="part in parts()" :key="part.id">
+        <div class="ask-part">
+          <label class="check"><input type="checkbox" x-model="use[part.id]"> <b x-text="t('ask.parts.' + part.id)"></b></label>
+          <ul class="diff">
+            <template x-for="(l, i) in part.lines" :key="i">
+              <li><b x-show="l.label" x-text="l.label"></b>
+                <span><del x-show="l.old" x-text="l.old"></del> <span aria-hidden="true" x-show="l.old && l.new">→</span> <ins x-show="l.new" x-text="l.new"></ins></span></li>
+            </template>
+          </ul>
+        </div>
+      </template>
+      <p class="muted small" x-show="!parts().length" x-text="t('ask.nothing')"></p>
+      <p class="muted small" x-show="answer.skipped?.length" x-text="t('ask.left_out', {keys: (answer.skipped || []).map(s => label(s.key)).join(', ')})"></p>
+      <div class="actions">
+        <button class="btn primary" x-show="parts().length" :disabled="applying || !Object.values(use).some(Boolean)" @click="apply()" x-text="t('ask.apply')"></button>
+        <button class="btn" @click="answer = null" x-text="t('cancel')"></button>
+      </div>
+    </div>
+  </template>
+</section>

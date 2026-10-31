@@ -5,15 +5,15 @@ import keyring
 import pytest
 from fastapi.testclient import TestClient
 
-from jobquill.core import ai, alerts, mail, secrets, sources
-from jobquill.core import profile as pf
-from jobquill.core.data import db
+from jobgambit.core import ai, alerts, mail, secrets, sources
+from jobgambit.core import profile as pf
+from jobgambit.core.data import db
 
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
     """A tmp home with an in-memory keyring: no test touches a real password store."""
-    monkeypatch.setenv("JOBQUILL_HOME", str(tmp_path))
+    monkeypatch.setenv("JOBGAMBIT_HOME", str(tmp_path))
     store = {}
     monkeypatch.setattr(keyring, "get_password", lambda s, n: store.get((s, n)))
     monkeypatch.setattr(keyring, "set_password", lambda s, n, v: store.__setitem__((s, n), v))
@@ -22,7 +22,7 @@ def home(tmp_path, monkeypatch):
 
 
 def client():
-    from jobquill.app import server
+    from jobgambit.app import server
     return TestClient(server.app, base_url="http://127.0.0.1", headers={"x-token": server.TOKEN})
 
 
@@ -43,7 +43,7 @@ def test_older_preferences_file_still_loads(home):
 
 
 def test_ask_rejects_denied_keys_and_bad_values_and_returns_a_diff(home, monkeypatch):
-    from jobquill.app import settings_api
+    from jobgambit.app import settings_api
     pf.write("preferences", {"places": ["Berlin"], "job_types": ["full_time", "internship"], "email": {"address": "a@b.de"}})
     seen = {}
     answer = settings_api.AskAnswer(reply="I'll add Munich and drop internships.", changes=[
@@ -100,8 +100,8 @@ def test_mail_test_reads_and_sends_itself_a_mail(home, monkeypatch):
     monkeypatch.setattr(mail.smtplib, "SMTP_SSL", Smtp)
     assert "ana@gmail.com" in mail.test()
     assert ("imap login", "ana@gmail.com", "abcdefghijklmnop") in calls and ("smtp", "smtp.gmail.com", 465) in calls
-    assert ("sent", "ana@gmail.com", "JobQuill is connected") in calls
-    assert mail.SKIP.search("ana@gmail.com jobquill is connected")  # its own mails are never read as replies
+    assert ("sent", "ana@gmail.com", "JobGambit is connected") in calls
+    assert mail.SKIP.search("ana@gmail.com jobgambit is connected")  # its own mails are never read as replies
 
 
 def test_email_alert_channel(home, monkeypatch):
@@ -110,7 +110,7 @@ def test_email_alert_channel(home, monkeypatch):
     monkeypatch.setattr(mail, "settings", lambda: {"address": "ana@gmail.com"})
     monkeypatch.setattr(mail, "send", lambda to, subject, body: sent.append((to, subject)))
     pf.write("preferences", {"alert_events": ["interview"], "alert_email": True})
-    assert alerts.send("interview", "JobQuill: Acme", "interview") is True and sent == [("ana@gmail.com", "JobQuill: Acme")]
+    assert alerts.send("interview", "JobGambit: Acme", "interview") is True and sent == [("ana@gmail.com", "JobGambit: Acme")]
     assert alerts.send("matches", "x", "y") is False and len(sent) == 1  # an event that's off
     assert alerts.send("test", "t", "b", True, only=[]) is False and len(sent) == 1  # a channel's own test: no email copy
     pf.write("preferences", {"alert_events": ["interview"], "alert_email": False})
@@ -120,10 +120,10 @@ def test_email_alert_channel(home, monkeypatch):
 def test_alert_channels_are_masked_added_and_removed(home):
     c = client()
     assert c.post("/api/alerts/channels", json={"url": "nonsense"}).status_code == 422
-    r = c.post("/api/alerts/channels", json={"url": "ntfy://jobquill-q7x2m9k4pz"})
+    r = c.post("/api/alerts/channels", json={"url": "ntfy://jobgambit-q7x2m9k4pz"})
     assert r.status_code == 200 and r.json()["channels"][0]["kind"] == "Phone (ntfy)"
     got = c.get("/api/alerts").json()
-    assert "jobquill-q7x2m9k4pz" not in json.dumps(got) and got["channels"][0]["label"].startswith("ntfy://jobq")
+    assert "jobgambit-q7x2m9k4pz" not in json.dumps(got) and got["channels"][0]["label"].startswith("ntfy://jobg")
     assert c.delete("/api/alerts/channels/0").json()["channels"] == [] and alerts.urls() == []
 
 
@@ -146,7 +146,7 @@ def test_telegram_finds_the_chat(monkeypatch):
 
 
 def test_patch_and_ask_dedupe_lists(home, monkeypatch):
-    from jobquill.app import settings_api
+    from jobgambit.app import settings_api
     c = client()
     assert c.patch("/api/preferences", json={"places": ["Munich", "munich ", "Berlin", "Munich"],
                                              "keywords": {"de": ["KI", "ki", "Daten"]}}).status_code == 200
@@ -159,9 +159,9 @@ def test_patch_and_ask_dedupe_lists(home, monkeypatch):
 
 def test_a_connected_channel_isnt_added_twice(home):
     c = client()
-    assert "existing" not in c.post("/api/alerts/channels", json={"url": "ntfy://jobquill-q7x2m9k4pz"}).json()
-    r = c.post("/api/alerts/channels", json={"url": "ntfy://jobquill-q7x2m9k4pz/"}).json()
-    assert r["existing"] is True and len(r["channels"]) == 1 and alerts.urls() == ["ntfy://jobquill-q7x2m9k4pz"]
+    assert "existing" not in c.post("/api/alerts/channels", json={"url": "ntfy://jobgambit-q7x2m9k4pz"}).json()
+    r = c.post("/api/alerts/channels", json={"url": "ntfy://jobgambit-q7x2m9k4pz/"}).json()
+    assert r["existing"] is True and len(r["channels"]) == 1 and alerts.urls() == ["ntfy://jobgambit-q7x2m9k4pz"]
 
 
 def test_setup_step_is_kept(home):
@@ -178,7 +178,7 @@ def test_extract_text_from_a_letter(home):
 
 
 def test_openings_come_from_the_cv(home, monkeypatch):
-    from jobquill.app import setup_api
+    from jobgambit.app import setup_api
     pf.write("profile", {"basics": {"name": "Ana", "headline": "Nurse"},
                          "experience": [{"id": "e1", "title": "Nurse", "org": "Charité", "bullets": [{"id": "b1", "text": "Cared for 12 patients"}]}]})
     seen = {}
@@ -191,14 +191,14 @@ def test_openings_come_from_the_cv(home, monkeypatch):
 
 
 def test_setup_missing_fresh_and_configured(home, monkeypatch):
-    from jobquill.core import prompts
+    from jobgambit.core import prompts
     fresh, later, prefs = ["details", "style", "design", "email", "alerts", "search", "documents"], ["style"], {}
     c = client()
     assert c.get("/api/setup/missing").json()["missing"] == fresh
     pf.write("preferences", {"design": "modern", "search_time": "09:00", "setup_hidden": ["email"], "setup_done": True, **prefs})
     pf.write("style", prompts.load("default_style"))  # the default style isn't their own yet
     pf.write("answers", {"Notice period": "1 month"})
-    alerts.set_urls(["ntfy://jobquill-q7x2m9k4pz"])
+    alerts.set_urls(["ntfy://jobgambit-q7x2m9k4pz"])
     assert c.post("/api/upload-folder/files?name=..%2FBachelor.pdf", content=b"%PDF").json()["documents"] == ["Bachelor.pdf"]
     assert c.post("/api/upload-folder/files?name=run.exe", content=b"MZ").status_code == 422
     assert c.get("/api/setup/missing").json()["missing"] == later
@@ -210,7 +210,7 @@ def test_setup_missing_fresh_and_configured(home, monkeypatch):
 def test_ask_splits_a_mixed_request_and_saves_nothing(home, monkeypatch):
     """One sentence -> settings, CV instructions, letter instructions (banned list kept), application details and a CV
     request handed to the merge; nothing is written before Apply."""
-    from jobquill.app import settings_api, setup_api
+    from jobgambit.app import settings_api, setup_api
     pf.write("preferences", {"places": ["Berlin"]})
     pf.write("cv_rules", "# CV instructions\n- Lead with robotics")
     pf.write("style", "# Letter\n- Formal\n\n## Banned phrases\n- passionate\n")
@@ -242,8 +242,8 @@ def test_ask_splits_a_mixed_request_and_saves_nothing(home, monkeypatch):
 def test_applied_jobs_never_show_or_get_a_second_application(home):
     """The same posting, or the same job on another site (same company, near-identical title), counts as applied:
     the Board hides it and no draft starts. Saved-for-later applications don't count."""
-    from jobquill.core import apply, posting
-    from jobquill.core.data import db
+    from jobgambit.core import apply, posting
+    from jobgambit.core.data import db
     k1 = posting.save({"url": "https://a.example/1", "title": "ML Engineer (m/w/d)", "company": "Acme GmbH", "description": "d"})
     k2 = posting.save({"url": "https://b.example/2", "title": "ML Engineer", "company": "ACME", "description": "d"})
     k3 = posting.save({"url": "https://c.example/3", "title": "Data Analyst", "company": "Acme GmbH", "description": "d"})
@@ -278,7 +278,7 @@ def test_instruction_added_while_applying(home):
 def test_writing_box_builds_on_the_unsaved_editors_and_touches_writing_only(home, monkeypatch):
     """Profile › Writing's AI box: the editors' unsaved text goes in, only writing settings and the two instructions come
     out (a language wish becomes doc_language); application details and CV facts are never touched from there."""
-    from jobquill.app import settings_api
+    from jobgambit.app import settings_api
     pf.write("preferences", {"places": ["Berlin"]})
     seen = {}
     answer = settings_api.AskAnswer(reply="English from now on.", changes=[{"key": "doc_language", "value_json": '"en"'},
@@ -295,7 +295,7 @@ def test_writing_box_builds_on_the_unsaved_editors_and_touches_writing_only(home
 
 
 def test_board_notes_applied_count_and_missed_postings(home, monkeypatch):
-    from jobquill.core import sites
+    from jobgambit.core import sites
     monkeypatch.setattr(sites, "learn", lambda *a, **k: None)  # no network
     c = client()
     text = "Acme GmbH is hiring a Robotics Engineer in Munich. " + "You build robot software in Python and C++. " * 12
@@ -311,8 +311,8 @@ def test_board_notes_applied_count_and_missed_postings(home, monkeypatch):
 
 
 def test_asked_missing_counts_keywords_the_cv_lacks(home):
-    from jobquill.core import check
-    from jobquill.core.data import home as data_home
+    from jobgambit.core import check
+    from jobgambit.core.data import home as data_home
     master = pf.folder() / pf.FILES["profile"]
     master.parent.mkdir(parents=True, exist_ok=True)
     master.write_text("skills: [Python, ROS 2]", encoding="utf-8")
@@ -326,7 +326,7 @@ def test_asked_missing_counts_keywords_the_cv_lacks(home):
 
 
 def test_source_that_finds_nothing_three_times_sends_one_alert(home, monkeypatch):
-    from jobquill.core import search
+    from jobgambit.core import search
     sent = []
     pf.write("preferences", {**pf.Preferences().model_dump(), "targets": [{"code": "DE"}], "titles": ["Robotics Engineer"], "remote": "onsite"})
     monkeypatch.setattr(search, "pack_sources", lambda cc: ({}, {}, {"emptyfeed"}))

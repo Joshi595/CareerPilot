@@ -1,6 +1,6 @@
 [project]
-name = "jobquill"
-version = "0.14.3"
+name = "jobgambit"
+version = "0.16.1"
 description = "Find jobs and tailor your CV and cover letter with the AI plan you already have. Runs on your own computer."
 readme = "README.md"
 license = "MIT"
@@ -24,10 +24,10 @@ dependencies = [
 ]
 
 [project.scripts]
-jobquill = "jobquill.app.server:main"
+jobgambit = "jobgambit.app.server:main"
 
 [project.gui-scripts]
-jobquill-app = "jobquill.app.server:main"
+jobgambit-app = "jobgambit.app.server:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "httpx2"]
