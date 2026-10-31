@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.2 (2026-10-31)
+
+- pypdf 6.21.4: fixes seven known security issues in reading PDF files (CVE-2026-119203 to -119209).
+
 ## 0.16.1 (2026-10-31)
 
 - JobQuill is now **JobGambit**: the old name belongs to another product. The first start moves your data folder,

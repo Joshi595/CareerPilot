@@ -1,6 +1,6 @@
 [project]
 name = "jobgambit"
-version = "0.16.1"
+version = "0.16.2"
 description = "Find jobs and tailor your CV and cover letter with the AI plan you already have. Runs on your own computer."
 readme = "README.md"
 license = "MIT"

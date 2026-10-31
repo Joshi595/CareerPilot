@@ -149,9 +149,6 @@ curl -LsSf https://raw.githubusercontent.com/Joshi595/JobGambit/main/install.sh 
 The installer asks which AI you use and installs it with that company's own installer. When it's done, JobGambit
 opens in your browser. Next time, use the **Start JobGambit** icon.
 
-Up to 0.16 JobGambit was called JobQuill. If you have JobQuill, run the installer above once: Help › Update can't
-install the renamed app. The installer removes the old copy, and your data, documents and passwords move over.
-
 ### First steps
 
 1. **Setup** asks once for what an application needs: your CV (PDF, Word or LinkedIn export, every line checked by
